@@ -70,6 +70,10 @@ class MainActivity : AppCompatActivity() {
             dispatchTakePictureIntent()
         }
 
+        findViewById<Button>(R.id.checkButton).setOnClickListener {
+            checkValue()
+        }
+
         findViewById<Button>(R.id.updateProjectListButton).setOnClickListener {
             updateProjectList()
         }
@@ -82,6 +86,9 @@ class MainActivity : AppCompatActivity() {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 val selectedProject = parent.getItemAtPosition(position) as String
                 selectedProjectName = selectedProject
+
+//                val tw = findViewById<TextView>(R.id.textView)
+//                tw.text = projectAdapter.count.toString()
             }
 
             override fun onNothingSelected(parent: AdapterView<*>) {
@@ -90,6 +97,15 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
+
+    private fun checkValue() {
+        val tw = findViewById<TextView>(R.id.textView)
+        tw.text = projectAdapter.count.toString()
+
+//        val projectSpinner: Spinner = findViewById(R.id.projectSpinner)
+//        selectedProjectName  = projectSpinner.selectedItem as String
+    }
+
 
     private fun populateProjectSpinner() {
         val projectsFile = File(filesDir, "projects.txt")
@@ -108,6 +124,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        if (projectNames.isEmpty()) {
+            projectNames.add("No projects")
+        }
+
         val projectSpinner: Spinner = findViewById(R.id.projectSpinner)
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, projectNames)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -119,35 +139,44 @@ class MainActivity : AppCompatActivity() {
         checkServerAvailability { isAvailable, response ->
             if (isAvailable) {
                 getProjectList { projectList, message ->
+                    val file = File(filesDir, "projects.txt")
+                    val sb = StringBuilder()
+                    val projectNames = projectList.map { it.projectName }
                     if (projectList.isNotEmpty()) {
-                        val file = File(filesDir, "projects.txt")
-                        val sb = StringBuilder()
                         for (project in projectList) {
                             sb.append("${project.projectId}: ${project.projectName}\n")
                         }
-
                         file.writeText(sb.toString())
-
-                        val projectNames = projectList.map { it.projectName }
-
+                    }
+                    else {
+                        file.writeText("")
+                        if (message.isEmpty()) {
+                            runOnUiThread {
+                                Toast.makeText(this, "Get empty project list", Toast.LENGTH_LONG)
+                                    .show()
+                            }
+                        }
+                    }
+                    if (message.isEmpty()) {
                         runOnUiThread {
                             projectAdapter.clear()
                             projectAdapter.addAll(projectNames)
                             projectAdapter.notifyDataSetChanged()
                             populateProjectSpinner()
+
+                            runOnUiThread {
+                                Toast.makeText(this, "Success. Received ${projectAdapter.count} projects.",
+                                    Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                     else {
-//                        val tw = findViewById<TextView>(R.id.textView)
-//                        tw.text = message
-                        runOnUiThread{
-                            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                        runOnUiThread {
+                            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
                         }
                     }
                 }
             } else {
-//                val tw = findViewById<TextView>(R.id.textView)
-//                tw.text = response
                 runOnUiThread{
                     Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
                 }
@@ -227,52 +256,64 @@ class MainActivity : AppCompatActivity() {
         val commentEditText: EditText = findViewById(R.id.commentEditText)
         comment = commentEditText.text.toString()
 
-        if (TextUtils.isEmpty(serverAddress)) {
-            Toast.makeText(this, "Server address is empty", Toast.LENGTH_SHORT).show()
-        } else {
-            if (imageBase64.isNotEmpty()) {
-                val client = OkHttpClient()
+        if (projectAdapter.count != 0) {
+            if (TextUtils.isEmpty(serverAddress)) {
+                Toast.makeText(this, "Server address is empty", Toast.LENGTH_SHORT).show()
+            } else {
+                if (imageBase64.isNotEmpty()) {
+                    val client = OkHttpClient()
 
-                val requestBody: RequestBody = FormBody.Builder()
-                    .add("imageBase64", imageBase64)
-                    .add("project_name", selectedProjectName)
-                    .add("comment", comment)
-                    .build()
+                    val requestBody: RequestBody = FormBody.Builder()
+                        .add("imageBase64", imageBase64)
+                        .add("project_name", selectedProjectName)
+                        .add("comment", comment)
+                        .build()
 
-                val request: Request = Request.Builder()
-                    .url("http://$serverAddress/myproject/upload.php")
-                    .post(requestBody)
-                    .build()
+                    val request: Request = Request.Builder()
+                        .url("http://$serverAddress/myproject/upload.php")
+                        .post(requestBody)
+                        .build()
 
-                client.newCall(request).enqueue(object : Callback {
-                    override fun onResponse(call: Call, response: Response) {
-                        if (response.isSuccessful) {
-                            val logMessage = "Success sending request"
-                            deletePhotoFile()
+                    client.newCall(request).enqueue(object : Callback {
+                        override fun onResponse(call: Call, response: Response) {
+                            if (response.isSuccessful) {
+                                val logMessage = "Success sending request"
+                                deletePhotoFile()
 
-                            Log.e(TAG, logMessage)
-                            saveLog(logMessage)
-                        } else {
-                            val logMessage = "Error sending request"
-                            runOnUiThread {
-                                Toast.makeText(this@MainActivity, "Error sending request", Toast.LENGTH_SHORT).show()
+                                Log.e(TAG, logMessage)
+                                saveLog(logMessage)
+                            } else {
+                                val logMessage = "Error sending request"
+                                runOnUiThread {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Error sending request",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                Log.e(TAG, "$logMessage: ${response.message}")
                             }
-                            Log.e(TAG, "$logMessage: ${response.message}")
                         }
-                    }
 
-                    override fun onFailure(call: Call, e: IOException) {
-                        runOnUiThread {
-                            Toast.makeText(this@MainActivity, "No image to send", Toast.LENGTH_SHORT).show()
+                        override fun onFailure(call: Call, e: IOException) {
+                            runOnUiThread {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "No image to send",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            Log.e(TAG, "Error sending request: ${e.message}")
                         }
-                        Log.e(TAG, "Error sending request: ${e.message}")
-                    }
-                })
+                    })
 
+                } else {
+                    Toast.makeText(this, "No image to send", Toast.LENGTH_SHORT).show()
+                }
             }
-            else {
-                Toast.makeText(this, "No image to send", Toast.LENGTH_SHORT).show()
-            }
+        }
+        else {
+            Toast.makeText(this, "Project list is empty", Toast.LENGTH_SHORT).show()
         }
 
     }
@@ -294,13 +335,14 @@ class MainActivity : AppCompatActivity() {
                     val projectList = parseProjectList(responseBody)
                     callback(projectList, "")
                 } else {
-                    Log.e(TAG, "Error getting project list: ${response.message}")
-                    callback(emptyList(), response.message)
+                    var logMsg = "Response unsuccessful, getting project list"
+                    Log.e(TAG, "$logMsg: ${response.message}")
+                    callback(emptyList(), "$logMsg: ${response.message}")
                 }
             }
 
             override fun onFailure(call: Call, e: IOException) {
-                Log.e(TAG, "Error getting project list: ${e.message}")
+                Log.e(TAG, "Failure, getting project list: ${e.message}")
                 callback(emptyList(), e.message ?: "")
             }
         })
@@ -381,6 +423,8 @@ class MainActivity : AppCompatActivity() {
             val rotatedBitmap = getRotatedImageWithExif(currentPhotoPath!!)
             photoImageView.setImageBitmap(rotatedBitmap)
             imageBase64 = convertImageToBase64(rotatedBitmap)
+            val tw = findViewById<TextView>(R.id.textView)
+            tw.text = selectedProjectName
         }
     }
 }
