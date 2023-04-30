@@ -42,6 +42,8 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.text.TextUtils
 import android.view.View
+import androidx.appcompat.app.AlertDialog
+
 
 
 class MainActivity : AppCompatActivity() {
@@ -53,8 +55,7 @@ class MainActivity : AppCompatActivity() {
 //    private var projectNameSpinner: String = ""
     private var comment: String = ""
     private var selectedProjectName: String = ""
-
-
+    private var project_count: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,16 +71,12 @@ class MainActivity : AppCompatActivity() {
             dispatchTakePictureIntent()
         }
 
-        findViewById<Button>(R.id.checkButton).setOnClickListener {
-            checkValue()
-        }
-
         findViewById<Button>(R.id.updateProjectListButton).setOnClickListener {
             updateProjectList()
         }
 
         findViewById<Button>(R.id.sendToServerButton).setOnClickListener {
-            sendToServer()
+            showDialog()
         }
 
         projectSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -97,15 +94,6 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
-
-    private fun checkValue() {
-        val tw = findViewById<TextView>(R.id.textView)
-        tw.text = projectAdapter.count.toString()
-
-//        val projectSpinner: Spinner = findViewById(R.id.projectSpinner)
-//        selectedProjectName  = projectSpinner.selectedItem as String
-    }
-
 
     private fun populateProjectSpinner() {
         val projectsFile = File(filesDir, "projects.txt")
@@ -132,8 +120,9 @@ class MainActivity : AppCompatActivity() {
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, projectNames)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         projectSpinner.adapter = adapter
-    }
 
+        project_count = adapter.count
+    }
 
     private fun updateProjectList() {
         checkServerAvailability { isAvailable, response ->
@@ -152,7 +141,7 @@ class MainActivity : AppCompatActivity() {
                         file.writeText("")
                         if (message.isEmpty()) {
                             runOnUiThread {
-                                Toast.makeText(this, "Get empty project list", Toast.LENGTH_LONG)
+                                Toast.makeText(this, "Received empty project list", Toast.LENGTH_LONG)
                                     .show()
                             }
                         }
@@ -185,32 +174,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun dispatchTakePictureIntent() {
-
-        val projectSpinner: Spinner = findViewById(R.id.projectSpinner)
-        selectedProjectName  = projectSpinner.selectedItem as String
-
-        checkServerAvailability { isAvailable, response ->
-            if (isAvailable) {
-                Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
-                    val photoFile: File? = try {
-                        createImageFile()
-                    } catch (ex: IOException) {
-                        null
-                    }
-                    photoFile?.also {
-                        val photoURI = FileProvider.getUriForFile(this,
-                            "com.example.android.fileprovider",
-                            photoFile)
-                        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
-                        startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
-                    }
-                }
-            } else {
-//                tw.text = response
-                runOnUiThread{
-                    Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
-                }
-
+        Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
+            val photoFile: File? = try {
+                createImageFile()
+            } catch (ex: IOException) {
+                null
+            }
+            photoFile?.also {
+                val photoURI = FileProvider.getUriForFile(this,
+                    "com.example.android.fileprovider",
+                    photoFile)
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
+                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
             }
         }
     }
@@ -248,72 +223,121 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun sendToServer() {
-
-        val serverAddressEditText: EditText = findViewById(R.id.serverAddressEditText)
-        val serverAddress: String = serverAddressEditText.text.toString()
-
-        val commentEditText: EditText = findViewById(R.id.commentEditText)
-        comment = commentEditText.text.toString()
-
-        if (projectAdapter.count != 0) {
-            if (TextUtils.isEmpty(serverAddress)) {
-                Toast.makeText(this, "Server address is empty", Toast.LENGTH_SHORT).show()
-            } else {
-                if (imageBase64.isNotEmpty()) {
-                    val client = OkHttpClient()
-
-                    val requestBody: RequestBody = FormBody.Builder()
-                        .add("imageBase64", imageBase64)
-                        .add("project_name", selectedProjectName)
-                        .add("comment", comment)
-                        .build()
-
-                    val request: Request = Request.Builder()
-                        .url("http://$serverAddress/myproject/upload.php")
-                        .post(requestBody)
-                        .build()
-
-                    client.newCall(request).enqueue(object : Callback {
-                        override fun onResponse(call: Call, response: Response) {
-                            if (response.isSuccessful) {
-                                val logMessage = "Success sending request"
-                                deletePhotoFile()
-
-                                Log.e(TAG, logMessage)
-                                saveLog(logMessage)
-                            } else {
-                                val logMessage = "Error sending request"
-                                runOnUiThread {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Error sending request",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                                Log.e(TAG, "$logMessage: ${response.message}")
-                            }
-                        }
-
-                        override fun onFailure(call: Call, e: IOException) {
-                            runOnUiThread {
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "No image to send",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                            Log.e(TAG, "Error sending request: ${e.message}")
-                        }
-                    })
-
-                } else {
+    private fun showDialog() {
+            val commentEditText: EditText = findViewById(R.id.commentEditText)
+            comment = commentEditText.text.toString()
+            if (imageBase64.isNotEmpty()) {
+                val builder = AlertDialog.Builder(this)
+                builder.setTitle("Отправить на сервер?")
+                builder.setMessage("Комментарий: $comment\nВыбранный проект: $selectedProjectName")
+                builder.setPositiveButton("Да") { dialog, which ->
+                    sendToServer()
+                    Log.d(
+                        TAG,
+                        "Отправка на сервер: Фото, выбранный проект - $selectedProjectName, комментарий - $comment"
+                    )
+                }
+                builder.setNegativeButton("Отмена") { dialog, which ->
+                    dialog.dismiss()
+                }
+                builder.show()
+            }
+            else {
+                runOnUiThread {
                     Toast.makeText(this, "No image to send", Toast.LENGTH_SHORT).show()
                 }
             }
-        }
-        else {
-            Toast.makeText(this, "Project list is empty", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun sendToServer() {
+        checkServerAvailability { isAvailable, response ->
+            if (isAvailable) {
+                val serverAddressEditText: EditText = findViewById(R.id.serverAddressEditText)
+                val serverAddress: String = serverAddressEditText.text.toString()
+
+                val commentEditText: EditText = findViewById(R.id.commentEditText)
+                comment = commentEditText.text.toString()
+
+                if (project_count != 0) {
+                    if (TextUtils.isEmpty(serverAddress)) {
+                        runOnUiThread {
+                            Toast.makeText(this, "Server address is empty", Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                    } else {
+                        if (imageBase64.isNotEmpty()) {
+                            val client = OkHttpClient()
+
+                            val requestBody: RequestBody = FormBody.Builder()
+                                .add("imageBase64", imageBase64)
+                                .add("project_name", selectedProjectName)
+                                .add("comment", comment)
+                                .build()
+
+                            val request: Request = Request.Builder()
+                                .url("http://$serverAddress/myproject/upload.php")
+                                .post(requestBody)
+                                .build()
+
+                            client.newCall(request).enqueue(object : Callback {
+                                override fun onResponse(call: Call, response: Response) {
+                                    if (response.isSuccessful) {
+                                        val logMessage = "Successfully sent to the server."
+                                        runOnUiThread {
+                                            Toast.makeText(
+                                                this@MainActivity,
+                                                logMessage,
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                        deletePhotoFile()
+
+                                        Log.e(TAG, logMessage)
+                                        saveLog(logMessage)
+                                    } else {
+                                        val logMessage = "Error sending request"
+                                        runOnUiThread {
+                                            Toast.makeText(
+                                                this@MainActivity,
+                                                "Error sending request",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                        Log.e(TAG, "$logMessage: ${response.message}")
+                                    }
+                                }
+
+                                override fun onFailure(call: Call, e: IOException) {
+                                    runOnUiThread {
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            "No image to send",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    Log.e(TAG, "Error sending request: ${e.message}")
+                                }
+                            })
+
+                        } else {
+                            runOnUiThread {
+                                Toast.makeText(this, "No image to send", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+                else {
+                    runOnUiThread {
+                        Toast.makeText(this, "Project list is empty", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } else {
+//                tw.text = response
+                runOnUiThread{
+                    Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
+                }
+
+            }
         }
 
     }
@@ -371,9 +395,10 @@ class MainActivity : AppCompatActivity() {
         val serverAddress: String = serverAddressEditText.text.toString()
 
         if (TextUtils.isEmpty(serverAddress)) {
-            Toast.makeText(this, "Server address is empty", Toast.LENGTH_SHORT).show()
+            runOnUiThread {
+                Toast.makeText(this, "Server address is empty", Toast.LENGTH_SHORT).show()
+            }
         } else {
-
             val client = OkHttpClient()
             val request: Request = Request.Builder()
                 .url("http://$serverAddress/")
@@ -423,14 +448,9 @@ class MainActivity : AppCompatActivity() {
             val rotatedBitmap = getRotatedImageWithExif(currentPhotoPath!!)
             photoImageView.setImageBitmap(rotatedBitmap)
             imageBase64 = convertImageToBase64(rotatedBitmap)
-            val tw = findViewById<TextView>(R.id.textView)
-            tw.text = selectedProjectName
         }
     }
 }
 
-//пустой spinner
-//Server is unavailable на другой ip
-//фотку вниз
 //пользователь подтвержадет даынне для отправка
 //русские комменты

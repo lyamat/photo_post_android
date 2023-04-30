@@ -4,11 +4,11 @@
     <item android:state_pressed="true" android:drawable="@android:color/white" />
     <item android:state_selected="true" android:drawable="@android:color/white" />
     <item>
-        <inset android:insetLeft="5dp" android:insetRight="5dp" android:insetBottom="500dp">
+        <inset android:insetLeft="5dp" android:insetRight="5dp" android:insetBottom="50dp">
             <shape android:shape="rectangle">
                 <stroke android:width="1dp"
                     android:color="#001726" />
-                <solid android:color="#FFFF" />
+                <solid android:color="#FFFF" />s
             </shape>
         </inset>
     </item>
