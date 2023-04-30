@@ -59,6 +59,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContentView(R.layout.activity_main)
 
         val projectSpinner: Spinner = findViewById(R.id.projectSpinner)
@@ -451,6 +452,3 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-
-//пользователь подтвержадет даынне для отправка
-//русские комменты
