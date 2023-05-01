@@ -10,8 +10,7 @@ import java.io.BufferedReader
 import java.io.FileReader
 
 import androidx.appcompat.app.AppCompatActivity
-import android.media.ExifInterface
-
+import androidx.exifinterface.media.ExifInterface
 
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
@@ -47,10 +46,6 @@ import kotlinx.coroutines.withContext
 import java.net.Socket
 import java.net.InetSocketAddress
 
-
-
-
-
 class MainActivity : AppCompatActivity() {
     private val TAG = "MyActivity"
     private val REQUEST_IMAGE_CAPTURE = 1
@@ -59,14 +54,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var projectAdapter: ArrayAdapter<String>
     private lateinit var ipsAdapter: ArrayAdapter<String>
 
-    private val availableAddresses = mutableListOf<String>()
+//    private val availableAddresses = mutableListOf<String>()
     private var imageBase64: String = ""
 //    private var projectNameSpinner: String = ""
     private var comment: String = ""
 
     private var selectedProjectName: String = ""
     private var selectedIp: String = ""
-    private var project_count: Int = 0
+    private var projectCount: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,7 +105,6 @@ class MainActivity : AppCompatActivity() {
                 // Do nothing
             }
         }
-
         projectSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 val selectedProject = parent.getItemAtPosition(position) as String
@@ -134,26 +128,20 @@ class MainActivity : AppCompatActivity() {
                 val address = subnet + i.toString()
                 try {
                     val socket = Socket()
-                    val socketAddress = InetSocketAddress(address, 80) // проверяем доступность порта 80
-                    socket.connect(socketAddress, 50) // 1000 миллисекунд таймаут
+                    val socketAddress = InetSocketAddress(address, 80)
+                    socket.connect(socketAddress, 50)
                     availableAddresses.add(address)
                     socket.close()
                 } catch (e: IOException) {
                     // адрес недоступен
                 }
             }
-
             withContext(Dispatchers.Main) {
                 ipsAdapter.addAll(availableAddresses)
                 ipsAdapter.notifyDataSetChanged()
             }
         }
     }
-
-
-
-
-
 
     private fun populateProjectSpinner() {
         val projectsFile = File(filesDir, "projects.txt")
@@ -181,12 +169,12 @@ class MainActivity : AppCompatActivity() {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         projectSpinner.adapter = adapter
 
-        project_count = adapter.count
+        projectCount = adapter.count
     }
 
     private fun updateProjectList() {
         val updateButton: Button = findViewById(R.id.updateProjectListButton)
-        updateButton.isEnabled = false // блокируем кнопку обновления списка проектов
+        updateButton.isEnabled = false
 
         checkServerAvailability { isAvailable, response ->
             if (isAvailable) {
@@ -240,7 +228,7 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
                     }
                 }
-                updateButton.isEnabled = true // разблокируем кнопку обновления списка проектов
+                updateButton.isEnabled = true
             }
         }
     }
@@ -332,7 +320,7 @@ class MainActivity : AppCompatActivity() {
                 val commentEditText: EditText = findViewById(R.id.commentEditText)
                 comment = commentEditText.text.toString()
 
-                if (project_count != 0) {
+                if (projectCount != 0) {
                     if (TextUtils.isEmpty(serverAddress)) {
                         runOnUiThread {
                             findViewById<Button>(R.id.sendToServerButton).isEnabled = true
@@ -369,7 +357,7 @@ class MainActivity : AppCompatActivity() {
                                         deletePhotoFile()
 
                                         Log.e(TAG, logMessage)
-                                        saveLog(logMessage)
+//                                        saveLog(logMessage)
                                     } else {
                                         val logMessage = "Error sending request"
                                         runOnUiThread {
@@ -412,7 +400,6 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             } else {
-//                tw.text = response
                 runOnUiThread{
                     findViewById<Button>(R.id.sendToServerButton).isEnabled = true
                     if (response != "") {
@@ -442,7 +429,7 @@ class MainActivity : AppCompatActivity() {
                     val projectList = parseProjectList(responseBody)
                     callback(projectList, "")
                 } else {
-                    var logMsg = "Response unsuccessful, getting project list"
+                    val logMsg = "Response unsuccessful, getting project list"
                     Log.e(TAG, "$logMsg: ${response.message}")
                     callback(emptyList(), "$logMsg: ${response.message}")
                 }
@@ -491,7 +478,6 @@ class MainActivity : AppCompatActivity() {
 
             client.newCall(request).enqueue(object : Callback {
                 override fun onResponse(call: Call, response: Response) {
-                    // Обработка успешного ответа от сервера
                     Log.d(TAG, "The server is available")
                     runOnUiThread {
                         findViewById<Button>(R.id.updateProjectListButton).isEnabled = true
@@ -501,7 +487,6 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 override fun onFailure(call: Call, e: IOException) {
-                    // Обработка ошибки при отправке запроса
                     Log.e(TAG, "Server is unavailable: ${e.message}")
                     runOnUiThread {
                         findViewById<Button>(R.id.updateProjectListButton).isEnabled = true
@@ -514,8 +499,7 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun deletePhotoFile() {
-        // Удаление файла с фотографией
-        val file = File(currentPhotoPath)
+        val file = File(currentPhotoPath!!)
         if (file.exists()) {
             file.delete()
         }
@@ -541,17 +525,9 @@ class MainActivity : AppCompatActivity() {
             val rotatedBitmap = getRotatedImageWithExif(currentPhotoPath!!)
             photoImageView.setImageBitmap(rotatedBitmap)
 
-            // Запускаем конвертацию в отдельном потоке с помощью Kotlin Coroutines
             CoroutineScope(Dispatchers.IO).launch {
                 imageBase64 = convertImageToBase64(rotatedBitmap)
             }
         }
     }
-
-
-
 }
-
-
-// когда нет фотки, сделать фон и рамку
-// задержку на кнопки, пока не придет ответ (update / send)
