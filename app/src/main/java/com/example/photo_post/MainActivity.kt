@@ -37,6 +37,7 @@ import androidx.appcompat.app.AlertDialog
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.text.format.Formatter
+import android.view.Menu
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.CoroutineScope
@@ -45,6 +46,8 @@ import kotlinx.coroutines.withContext
 
 import java.net.Socket
 import java.net.InetSocketAddress
+
+import com.example.photo_post.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "MyActivity"
@@ -63,10 +66,17 @@ class MainActivity : AppCompatActivity() {
     private var selectedIp: String = ""
     private var projectCount: Int = 0
 
+    private lateinit var binding: ActivityMainBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_main)
+
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        setSupportActionBar(binding.toolbar)
 
         val projectSpinner: Spinner = findViewById(R.id.projectSpinner)
         projectAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item)
@@ -115,6 +125,12 @@ class MainActivity : AppCompatActivity() {
                 // Do nothing
             }
         }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
     }
 
     private fun getAvailableIps() {
