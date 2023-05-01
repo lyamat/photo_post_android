@@ -15,7 +15,7 @@ fun convertImageToBase64(rotatedBitmap: Bitmap): String {
     val baos = ByteArrayOutputStream()
     rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos)
     val imageBytes: ByteArray = baos.toByteArray()
-    val imageBase64 = Base64.encodeToString(imageBytes, Base64.DEFAULT)
+    val imageBase64 = Base64.encodeToString(imageBytes, Base64.NO_WRAP)
 
     return imageBase64
 }

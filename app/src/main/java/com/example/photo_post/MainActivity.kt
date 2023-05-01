@@ -7,9 +7,7 @@ import android.os.Bundle
 import android.content.Intent
 import java.io.File
 import java.io.BufferedReader
-
 import java.io.FileReader
-
 
 import androidx.appcompat.app.AppCompatActivity
 import android.media.ExifInterface
@@ -21,14 +19,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.os.Environment
 
-
-import androidx.camera.*
-import androidx.camera.core.*
-import androidx.camera.lifecycle.*
-import androidx.camera.view.*
-
 import android.graphics.*
-import android.util.Base64
+
 import android.util.Log
 import android.widget.*
 
@@ -43,6 +35,19 @@ import android.graphics.Matrix
 import android.text.TextUtils
 import android.view.View
 import androidx.appcompat.app.AlertDialog
+import android.content.Context
+import android.net.wifi.WifiManager
+import android.text.format.Formatter
+
+import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+import java.net.Socket
+import java.net.InetSocketAddress
+
+
 
 
 
@@ -50,11 +55,17 @@ class MainActivity : AppCompatActivity() {
     private val TAG = "MyActivity"
     private val REQUEST_IMAGE_CAPTURE = 1
     private var currentPhotoPath: String? = null
+
     private lateinit var projectAdapter: ArrayAdapter<String>
+    private lateinit var ipsAdapter: ArrayAdapter<String>
+
+    private val availableAddresses = mutableListOf<String>()
     private var imageBase64: String = ""
 //    private var projectNameSpinner: String = ""
     private var comment: String = ""
+
     private var selectedProjectName: String = ""
+    private var selectedIp: String = ""
     private var project_count: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,7 +77,12 @@ class MainActivity : AppCompatActivity() {
         projectAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item)
         projectSpinner.adapter = projectAdapter
 
+        val ipsSpinner: Spinner = findViewById(R.id.ipsSpinner)
+        ipsAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item)
+        ipsSpinner.adapter = ipsAdapter
+
         populateProjectSpinner()
+        getAvailableIps()
 
         findViewById<Button>(R.id.button_camera).setOnClickListener {
             dispatchTakePictureIntent()
@@ -80,21 +96,64 @@ class MainActivity : AppCompatActivity() {
             showDialog()
         }
 
-        projectSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        ipsSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                val selectedProject = parent.getItemAtPosition(position) as String
-                selectedProjectName = selectedProject
+                val selectedSpinnerIp = parent.getItemAtPosition(position) as String
+                selectedIp = selectedSpinnerIp
 
-//                val tw = findViewById<TextView>(R.id.textView)
-//                tw.text = projectAdapter.count.toString()
+//                val serverAddressEditText: EditText = findViewById(R.id.serverAddressEditText)
+//                serverAddressEditText.text = Editable.Factory.getInstance().newEditable(selectedIp)
             }
+
 
             override fun onNothingSelected(parent: AdapterView<*>) {
                 // Do nothing
             }
         }
 
+        projectSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                val selectedProject = parent.getItemAtPosition(position) as String
+                selectedProjectName = selectedProject
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {
+                // Do nothing
+            }
+        }
     }
+
+    private fun getAvailableIps() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val ipAddress = Formatter.formatIpAddress(wifiManager.connectionInfo.ipAddress)
+            val subnet = ipAddress.substring(0, ipAddress.lastIndexOf('.') + 1)
+            val availableAddresses = mutableListOf<String>()
+
+            for (i in 1..255) {
+                val address = subnet + i.toString()
+                try {
+                    val socket = Socket()
+                    val socketAddress = InetSocketAddress(address, 80) // проверяем доступность порта 80
+                    socket.connect(socketAddress, 50) // 1000 миллисекунд таймаут
+                    availableAddresses.add(address)
+                    socket.close()
+                } catch (e: IOException) {
+                    // адрес недоступен
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                ipsAdapter.addAll(availableAddresses)
+                ipsAdapter.notifyDataSetChanged()
+            }
+        }
+    }
+
+
+
+
+
 
     private fun populateProjectSpinner() {
         val projectsFile = File(filesDir, "projects.txt")
@@ -126,6 +185,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateProjectList() {
+        val updateButton: Button = findViewById(R.id.updateProjectListButton)
+        updateButton.isEnabled = false // блокируем кнопку обновления списка проектов
+
         checkServerAvailability { isAvailable, response ->
             if (isAvailable) {
                 getProjectList { projectList, message ->
@@ -137,13 +199,15 @@ class MainActivity : AppCompatActivity() {
                             sb.append("${project.projectId}: ${project.projectName}\n")
                         }
                         file.writeText(sb.toString())
-                    }
-                    else {
+                    } else {
                         file.writeText("")
                         if (message.isEmpty()) {
                             runOnUiThread {
-                                Toast.makeText(this, "Received empty project list", Toast.LENGTH_LONG)
-                                    .show()
+                                Toast.makeText(
+                                    this,
+                                    "Received empty project list",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         }
                     }
@@ -155,24 +219,32 @@ class MainActivity : AppCompatActivity() {
                             populateProjectSpinner()
 
                             runOnUiThread {
-                                Toast.makeText(this, "Success. Received ${projectAdapter.count} projects.",
-                                    Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    this,
+                                    "Success. Received ${projectAdapter.count} projects.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
                         }
-                    }
-                    else {
+                    } else {
                         runOnUiThread {
                             Toast.makeText(this, message, Toast.LENGTH_LONG).show()
                         }
                     }
+
+                    updateButton.isEnabled = true // разблокируем кнопку обновления списка проектов
                 }
             } else {
-                runOnUiThread{
-                    Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
+                runOnUiThread {
+                    if (response != "") {
+                        Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
+                    }
                 }
+                updateButton.isEnabled = true // разблокируем кнопку обновления списка проектов
             }
         }
     }
+
 
     private fun dispatchTakePictureIntent() {
         Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
@@ -232,6 +304,7 @@ class MainActivity : AppCompatActivity() {
                 builder.setTitle("Отправить на сервер?")
                 builder.setMessage("Комментарий: $comment\nВыбранный проект: $selectedProjectName")
                 builder.setPositiveButton("Да") { dialog, which ->
+                    findViewById<Button>(R.id.sendToServerButton).isEnabled = false
                     sendToServer()
                     Log.d(
                         TAG,
@@ -262,6 +335,7 @@ class MainActivity : AppCompatActivity() {
                 if (project_count != 0) {
                     if (TextUtils.isEmpty(serverAddress)) {
                         runOnUiThread {
+                            findViewById<Button>(R.id.sendToServerButton).isEnabled = true
                             Toast.makeText(this, "Server address is empty", Toast.LENGTH_SHORT)
                                 .show()
                         }
@@ -285,6 +359,7 @@ class MainActivity : AppCompatActivity() {
                                     if (response.isSuccessful) {
                                         val logMessage = "Successfully sent to the server."
                                         runOnUiThread {
+                                            findViewById<Button>(R.id.sendToServerButton).isEnabled = true
                                             Toast.makeText(
                                                 this@MainActivity,
                                                 logMessage,
@@ -298,6 +373,7 @@ class MainActivity : AppCompatActivity() {
                                     } else {
                                         val logMessage = "Error sending request"
                                         runOnUiThread {
+                                            findViewById<Button>(R.id.sendToServerButton).isEnabled = true
                                             Toast.makeText(
                                                 this@MainActivity,
                                                 "Error sending request",
@@ -310,9 +386,10 @@ class MainActivity : AppCompatActivity() {
 
                                 override fun onFailure(call: Call, e: IOException) {
                                     runOnUiThread {
+                                        findViewById<Button>(R.id.sendToServerButton).isEnabled = true
                                         Toast.makeText(
                                             this@MainActivity,
-                                            "No image to send",
+                                            "Failure sending request",
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
@@ -322,6 +399,7 @@ class MainActivity : AppCompatActivity() {
 
                         } else {
                             runOnUiThread {
+                                findViewById<Button>(R.id.sendToServerButton).isEnabled = true
                                 Toast.makeText(this, "No image to send", Toast.LENGTH_SHORT).show()
                             }
                         }
@@ -329,13 +407,17 @@ class MainActivity : AppCompatActivity() {
                 }
                 else {
                     runOnUiThread {
+                        findViewById<Button>(R.id.sendToServerButton).isEnabled = true
                         Toast.makeText(this, "Project list is empty", Toast.LENGTH_SHORT).show()
                     }
                 }
             } else {
 //                tw.text = response
                 runOnUiThread{
-                    Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
+                    findViewById<Button>(R.id.sendToServerButton).isEnabled = true
+                    if (response != "") {
+                        Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
+                    }
                 }
 
             }
@@ -350,7 +432,7 @@ class MainActivity : AppCompatActivity() {
 
         val client = OkHttpClient()
         val request = Request.Builder()
-            .url("http://$serverAddress:80/myproject/get_project_list.php")
+            .url("http://$serverAddress/myproject/get_project_list.php")
             .build()
 
         client.newCall(request).enqueue(object : Callback {
@@ -398,6 +480,8 @@ class MainActivity : AppCompatActivity() {
         if (TextUtils.isEmpty(serverAddress)) {
             runOnUiThread {
                 Toast.makeText(this, "Server address is empty", Toast.LENGTH_SHORT).show()
+                findViewById<Button>(R.id.updateProjectListButton).isEnabled = true
+                callback(false, "")
             }
         } else {
             val client = OkHttpClient()
@@ -409,17 +493,25 @@ class MainActivity : AppCompatActivity() {
                 override fun onResponse(call: Call, response: Response) {
                     // Обработка успешного ответа от сервера
                     Log.d(TAG, "The server is available")
-                    callback(true, "")
+                    runOnUiThread {
+                        findViewById<Button>(R.id.updateProjectListButton).isEnabled = true
+                        callback(true, "")
+                    }
+
                 }
 
                 override fun onFailure(call: Call, e: IOException) {
                     // Обработка ошибки при отправке запроса
                     Log.e(TAG, "Server is unavailable: ${e.message}")
-                    callback(false, e.message!!)
+                    runOnUiThread {
+                        findViewById<Button>(R.id.updateProjectListButton).isEnabled = true
+                        callback(false, e.message!!)
+                    }
                 }
             })
         }
     }
+
 
     private fun deletePhotoFile() {
         // Удаление файла с фотографией
@@ -448,7 +540,18 @@ class MainActivity : AppCompatActivity() {
             val photoImageView = findViewById<ImageView>(R.id.photoImageView)
             val rotatedBitmap = getRotatedImageWithExif(currentPhotoPath!!)
             photoImageView.setImageBitmap(rotatedBitmap)
-            imageBase64 = convertImageToBase64(rotatedBitmap)
+
+            // Запускаем конвертацию в отдельном потоке с помощью Kotlin Coroutines
+            CoroutineScope(Dispatchers.IO).launch {
+                imageBase64 = convertImageToBase64(rotatedBitmap)
+            }
         }
     }
+
+
+
 }
+
+
+// когда нет фотки, сделать фон и рамку
+// задержку на кнопки, пока не придет ответ (update / send)
