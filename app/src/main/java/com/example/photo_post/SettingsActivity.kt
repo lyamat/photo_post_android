@@ -5,10 +5,6 @@ import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NavUtils
 
-
-
-
-
 class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,5 +40,3 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 }
-
-

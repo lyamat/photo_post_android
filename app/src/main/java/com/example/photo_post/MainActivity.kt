@@ -35,6 +35,7 @@ import android.text.TextUtils
 import android.view.View
 import androidx.appcompat.app.AlertDialog
 import android.content.Context
+import android.net.ConnectivityManager
 import android.net.wifi.WifiManager
 import android.text.format.Formatter
 import android.view.Menu
@@ -61,7 +62,6 @@ class MainActivity : AppCompatActivity() {
     private var comment: String = ""
 
     private var selectedProjectName: String = ""
-    private var selectedIp: String = ""
     private var projectCount: Int = 0
 
     private lateinit var binding: ActivityMainBinding
@@ -80,7 +80,6 @@ class MainActivity : AppCompatActivity() {
         projectSpinner.adapter = projectAdapter
 
         populateProjectSpinner()
-        // getAvailableIps()
 
         findViewById<Button>(R.id.button_camera).setOnClickListener {
             dispatchTakePictureIntent()
@@ -148,7 +147,8 @@ class MainActivity : AppCompatActivity() {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         projectSpinner.adapter = adapter
 
-        projectCount = adapter.count
+        projectCount = if (projectNames[0] == "No projects") 0 else adapter.count
+
     }
 
     private fun updateProjectList() {
@@ -158,70 +158,80 @@ class MainActivity : AppCompatActivity() {
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this)
         val project_list_addresses_post = sharedPrefs.getString("project_list_addresses_post", "")
 
-        checkServerAvailability(project_list_addresses_post!!) { isAvailable, response ->
-            if (isAvailable) {
-                getProjectList { projectList, message ->
-                    val file = File(filesDir, "projects.txt")
-                    val sb = StringBuilder()
-                    val projectNames = projectList.map { it.projectName }
-                    if (projectList.isNotEmpty()) {
-                        for (project in projectList) {
-                            sb.append("${project.projectId}: ${project.projectName}\n")
-                        }
-                        file.writeText(sb.toString())
-                    } else {
-                        file.writeText("")
-                        if (message.isEmpty()) {
-                            runOnUiThread {
-                                Toast.makeText(
-                                    this,
-                                    "Received empty project list",
-                                    Toast.LENGTH_LONG
-                                ).show()
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkInfo = connectivityManager.activeNetworkInfo
+        val isConnected = networkInfo != null && networkInfo.isConnected && networkInfo.type == ConnectivityManager.TYPE_WIFI
+
+        if (isConnected) {
+
+            checkServerAvailability(project_list_addresses_post!!) { isAvailable, response ->
+                if (isAvailable) {
+                    getProjectList { projectList, message ->
+                        val file = File(filesDir, "projects.txt")
+                        val sb = StringBuilder()
+                        val projectNames = projectList.map { it.projectName }
+                        if (projectList.isNotEmpty()) {
+                            for (project in projectList) {
+                                sb.append("${project.projectId}: ${project.projectName}\n")
+                            }
+                            file.writeText(sb.toString())
+                        } else {
+                            file.writeText("")
+                            if (message.isEmpty()) {
+                                runOnUiThread {
+                                    Toast.makeText(
+                                        this,
+                                        "Received empty response body",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
                             }
                         }
-                    }
 
-                    if (message == "Project list address is empty") {
+                        if (message == "Project list address is empty") {
 
-                    }
-
-                    else if (message.isEmpty()) {
-                        runOnUiThread {
-                            projectAdapter.clear()
-                            projectAdapter.addAll(projectNames)
-                            projectAdapter.notifyDataSetChanged()
-                            populateProjectSpinner()
-
+                        } else if (message.isEmpty()) {
                             runOnUiThread {
-                                Toast.makeText(
-                                    this,
-                                    "Success. Received ${projectAdapter.count} projects.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                projectAdapter.clear()
+                                projectAdapter.addAll(projectNames)
+                                projectAdapter.notifyDataSetChanged()
+                                populateProjectSpinner()
+                                if (projectList.isNotEmpty()) {
+                                    runOnUiThread {
+                                        Toast.makeText(
+                                            this,
+                                            "Success. Received ${projectAdapter.count} projects.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            }
+                        } else {
+                            runOnUiThread {
+                                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
                             }
                         }
-                    } else {
                         runOnUiThread {
-                            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                            updateButton.isEnabled = true
                         }
                     }
+                } else {
                     runOnUiThread {
-                        updateButton.isEnabled =
-                            true // разблокируем кнопку обновления списка проектов
+                        if (response != "") {
+                            Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
+                        }
+                        updateButton.isEnabled = true
                     }
-                }
-            } else {
-                runOnUiThread {
-                    if (response != "") {
-                        Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
-                    }
-                    updateButton.isEnabled = true
                 }
             }
         }
+        else {
+            runOnUiThread {
+                Toast.makeText(this, "Check Wi-fi connection", Toast.LENGTH_SHORT).show()
+                findViewById<Button>(R.id.updateProjectListButton).isEnabled = true
+            }
+        }
     }
-
 
     private fun dispatchTakePictureIntent() {
         Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
@@ -241,15 +251,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun createImageFile(): File? {
-        // Создаем уникальное имя для файла
         val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
         val storageDir: File? = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         return File.createTempFile(
-            "JPEG_${timeStamp}_", /* префикс */
-            ".jpg", /* суффикс */
-            storageDir /* директория */
+            "JPEG_${timeStamp}_",
+            ".jpg",
+            storageDir
         ).apply {
-            // Сохраняем путь к файлу
             currentPhotoPath = absolutePath
         }
     }
@@ -301,126 +309,142 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendToServer() {
-        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this)
-        val server_address_post_image = sharedPrefs.getString("server_address_post_image", "")
 
-        checkServerAvailability(server_address_post_image!!) { isAvailable, response ->
-            if (isAvailable) {
-                if (TextUtils.isEmpty(server_address_post_image)) {
-                    runOnUiThread {
-                        Toast.makeText(this, "Settings. Post image address is empty", Toast.LENGTH_SHORT).show()
-                        findViewById<Button>(R.id.sendToServerButton).isEnabled = true
-                    }
-                }
-                else {
-                    val commentEditText: EditText = findViewById(R.id.commentEditText)
-                    comment = commentEditText.text.toString()
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkInfo = connectivityManager.activeNetworkInfo
+        val isConnected = networkInfo != null && networkInfo.isConnected && networkInfo.type == ConnectivityManager.TYPE_WIFI
 
-                    if (projectCount != 0) {
-                        if (TextUtils.isEmpty(server_address_post_image)) {
-                            runOnUiThread {
-                                findViewById<Button>(R.id.sendToServerButton).isEnabled = true
-                                Toast.makeText(this, "Settings. Server address is empty", Toast.LENGTH_SHORT)
-                                    .show()
-                            }
-                        } else {
-                            if (imageBase64.isNotEmpty()) {
-                                val client = OkHttpClient()
+        if (isConnected) {
+            val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+            val server_address_post_image = sharedPrefs.getString("server_address_post_image", "")
 
-                                val requestBody: RequestBody = FormBody.Builder()
-                                    .add("imageBase64", imageBase64)
-                                    .add("project_name", selectedProjectName)
-                                    .add("comment", comment)
-                                    .build()
-
-                                val request: Request = Request.Builder()
-                                    .url("$server_address_post_image")
-                                    .post(requestBody)
-                                    .build()
-
-                                client.newCall(request).enqueue(object : Callback {
-                                    override fun onResponse(call: Call, response: Response) {
-                                        if (response.isSuccessful) {
-                                            val logMessage = "Successfully sent to the server."
-                                            runOnUiThread {
-                                                findViewById<Button>(R.id.sendToServerButton).isEnabled =
-                                                    true
-                                                Toast.makeText(
-                                                    this@MainActivity,
-                                                    logMessage,
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                            deletePhotoFile()
-
-                                            Log.e(TAG, logMessage)
-//                                        saveLog(logMessage)
-                                        } else {
-                                            val logMessage = "Error sending request"
-                                            runOnUiThread {
-                                                findViewById<Button>(R.id.sendToServerButton).isEnabled =
-                                                    true
-                                                Toast.makeText(
-                                                    this@MainActivity,
-                                                    "Error sending request",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                            Log.e(TAG, "$logMessage: ${response.message}")
-                                        }
-                                    }
-
-                                    override fun onFailure(call: Call, e: IOException) {
-                                        runOnUiThread {
-                                            findViewById<Button>(R.id.sendToServerButton).isEnabled =
-                                                true
-                                            Toast.makeText(
-                                                this@MainActivity,
-                                                "Failure sending request. Check url",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                        Log.e(TAG, "Error sending request: ${e.message}")
-                                    }
-                                })
-
-                            } else {
-                                runOnUiThread {
-                                    findViewById<Button>(R.id.sendToServerButton).isEnabled = true
-                                    Toast.makeText(this, "No image to send", Toast.LENGTH_SHORT)
-                                        .show()
-                                }
-                            }
+            checkServerAvailability(server_address_post_image!!) { isAvailable, response ->
+                if (isAvailable) {
+                    if (TextUtils.isEmpty(server_address_post_image)) {
+                        runOnUiThread {
+                            Toast.makeText(
+                                this,
+                                "Settings. Post image address is empty",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            findViewById<Button>(R.id.sendToServerButton).isEnabled = true
                         }
                     } else {
-                        runOnUiThread {
-                            findViewById<Button>(R.id.sendToServerButton).isEnabled = true
-                            Toast.makeText(this, "Project list is empty", Toast.LENGTH_SHORT).show()
+                        val commentEditText: EditText = findViewById(R.id.commentEditText)
+                        comment = commentEditText.text.toString()
+
+                        if (projectCount != 0) {
+                            if (TextUtils.isEmpty(server_address_post_image)) {
+                                runOnUiThread {
+                                    findViewById<Button>(R.id.sendToServerButton).isEnabled = true
+                                    Toast.makeText(
+                                        this,
+                                        "Settings. Server address is empty",
+                                        Toast.LENGTH_SHORT
+                                    )
+                                        .show()
+                                }
+                            } else {
+                                if (imageBase64.isNotEmpty()) {
+                                    val client = OkHttpClient()
+
+                                    val requestBody: RequestBody = FormBody.Builder()
+                                        .add("imageBase64", imageBase64)
+                                        .add("project_name", selectedProjectName)
+                                        .add("comment", comment)
+                                        .build()
+
+                                    val request: Request = Request.Builder()
+                                        .url("$server_address_post_image")
+                                        .post(requestBody)
+                                        .build()
+
+                                    client.newCall(request).enqueue(object : Callback {
+                                        override fun onResponse(call: Call, response: Response) {
+                                            if (response.isSuccessful) {
+                                                val logMessage = "Successfully sent to the server."
+                                                runOnUiThread {
+                                                    findViewById<Button>(R.id.sendToServerButton).isEnabled =
+                                                        true
+                                                    Toast.makeText(
+                                                        this@MainActivity,
+                                                        logMessage,
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                                deletePhotoFile()
+
+                                                Log.e(TAG, logMessage)
+//                                        saveLog(logMessage)
+                                            } else {
+                                                val logMessage = "Error sending request"
+                                                runOnUiThread {
+                                                    findViewById<Button>(R.id.sendToServerButton).isEnabled =
+                                                        true
+                                                    Toast.makeText(
+                                                        this@MainActivity,
+                                                        "Error sending request",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                                Log.e(TAG, "$logMessage: ${response.message}")
+                                            }
+                                        }
+
+                                        override fun onFailure(call: Call, e: IOException) {
+                                            runOnUiThread {
+                                                findViewById<Button>(R.id.sendToServerButton).isEnabled =
+                                                    true
+                                                Toast.makeText(
+                                                    this@MainActivity,
+                                                    "Failure sending request. Check url",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                            Log.e(TAG, "Error sending request: ${e.message}")
+                                        }
+                                    })
+
+                                } else {
+                                    runOnUiThread {
+                                        findViewById<Button>(R.id.sendToServerButton).isEnabled =
+                                            true
+                                        Toast.makeText(this, "No image to send", Toast.LENGTH_SHORT)
+                                            .show()
+                                    }
+                                }
+                            }
+                        } else {
+                            runOnUiThread {
+                                findViewById<Button>(R.id.sendToServerButton).isEnabled = true
+                                Toast.makeText(this, "Project list is empty", Toast.LENGTH_SHORT)
+                                    .show()
+                            }
                         }
                     }
-                }
-            } else {
-                runOnUiThread{
-                    findViewById<Button>(R.id.sendToServerButton).isEnabled = true
-                    if (response != "") {
-                        Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
+                } else {
+                    runOnUiThread {
+                        findViewById<Button>(R.id.sendToServerButton).isEnabled = true
+                        if (response != "") {
+                            Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
+                        }
                     }
-                }
 
+                }
+            }
+        }
+        else {
+            runOnUiThread {
+                Toast.makeText(this, "Check Wi-fi connection", Toast.LENGTH_SHORT).show()
+                findViewById<Button>(R.id.sendToServerButton).isEnabled = true
             }
         }
 
     }
 
     private fun getProjectList(callback: (List<Project>, String) -> Unit) {
-
-//        val serverAddressEditText: EditText = findViewById(R.id.serverAddressEditText)
-//        val serverAddress: String = serverAddressEditText.text.toString()
-
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this)
-        val server_address = sharedPrefs.getString("server_address", "")
         val project_list_addresses_post = sharedPrefs.getString("project_list_addresses_post", "")
-
 
         if (TextUtils.isEmpty(project_list_addresses_post)) {
             runOnUiThread {
@@ -453,9 +477,6 @@ class MainActivity : AppCompatActivity() {
                     callback(emptyList(), e.message ?: "")
                 }
             })
-//            runOnUiThread {
-//                findViewById<Button>(R.id.updateProjectListButton).isEnabled = true
-//            }
         }
     }
 
@@ -466,8 +487,8 @@ class MainActivity : AppCompatActivity() {
                 val jsonArray = JSONArray(it)
                 for (i in 0 until jsonArray.length()) {
                     val jsonObject = jsonArray.getJSONObject(i)
-                    val projectId = jsonObject.getInt("project_id")
-                    val projectName = jsonObject.getString("project_name")
+                    val projectId = jsonObject.getInt("id")
+                    val projectName = jsonObject.getString("name")
                     projectList.add(Project(projectId, projectName))
                 }
             } catch (e: JSONException) {
@@ -478,11 +499,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkServerAvailability(serverAddress: String, callback: (Boolean, String) -> Unit) {
-
-//        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this)
-//        val server_address = sharedPrefs.getString("server_address", "")
-//        val project_list_addresses_post = sharedPrefs.getString("project_list_addresses_post", "")
-
 
         if (TextUtils.isEmpty(serverAddress)) {
             runOnUiThread {

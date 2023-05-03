@@ -1,6 +1,5 @@
 package com.example.photo_post
 
-import android.app.AlertDialog
 import android.os.Bundle
 import android.widget.Toast
 import androidx.preference.EditTextPreference
@@ -36,25 +35,21 @@ open class SettingsFragment : PreferenceFragmentCompat() {
             }
         }
 
-        val urlRegex = Regex("(http|https)://[a-zA-Z0-9./-]+")
-
         getProjectListAddressPreference?.setOnPreferenceChangeListener { preference, newValue ->
-            val isValidUrl = urlRegex.matches(newValue.toString())
-            if (isValidUrl) {
-                preference.summary = newValue.toString()
-                sharedPreferences.edit().putString("project_list_addresses_post", newValue.toString()).apply()
-                true
-            } else {
-                AlertDialog.Builder(requireContext())
-                    .setTitle("Невалидный URL-адрес")
-                    .setMessage("Пожалуйста, введите корректный URL-адрес.")
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show()
-                false
+            if (!isValidUrl(newValue.toString())) {
+                Toast.makeText(requireContext(), "Неверный формат URL-адреса", Toast.LENGTH_SHORT).show()
+                return@setOnPreferenceChangeListener false
             }
+            preference.summary = newValue.toString()
+            sharedPreferences.edit().putString("project_list_addresses_post", newValue.toString()).apply()
+            true
         }
 
         sendToServerAddressPreference?.setOnPreferenceChangeListener { preference, newValue ->
+            if (!isValidUrl(newValue.toString())) {
+                Toast.makeText(requireContext(), "Неверный формат URL-адреса", Toast.LENGTH_SHORT).show()
+                return@setOnPreferenceChangeListener false
+            }
             preference.summary = newValue.toString()
             sharedPreferences.edit().putString("server_address_post_image", newValue.toString()).apply()
             true
@@ -63,5 +58,15 @@ open class SettingsFragment : PreferenceFragmentCompat() {
         getProjectListAddressPreference?.summary = getProjectListAddressPreference?.text
         sendToServerAddressPreference?.summary = sendToServerAddressPreference?.text
     }
+    private fun isValidUrl(url: String): Boolean {
+        return try {
+            URL(url)
+            true
+        } catch (e: MalformedURLException) {
+            false
+        }
+    }
 }
+
+
 
