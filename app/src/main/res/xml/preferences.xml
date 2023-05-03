@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
-    <EditTextPreference
-        app:key="project_list_addresses_post"
-        app:title="Get project list from this address:"
-        app:summary="@string/project_list_addresses_post" />
-    <EditTextPreference
-        app:key="server_address_post_image"
-        app:title="Send to this address:"
-        app:summary="@string/server_address_post_image" />
+    <PreferenceCategory app:title="Advanced">
+        <Preference
+            app:key="sub_menu_url"
+            app:title="URL Settings" />
+        <PreferenceScreen
+            app:key="sub_menu_password"
+            app:title="Change Password">
+        </PreferenceScreen>
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Update">
+        <Preference
+            app:key="update"
+            app:title="Update Projects" />
+    </PreferenceCategory>
 </PreferenceScreen>

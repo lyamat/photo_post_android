@@ -50,7 +50,7 @@
         android:layout_marginBottom="16dp"
         android:hint="Напишите сюда комментарий"
         android:maxLines="5"
-        app:layout_constraintBottom_toTopOf="@+id/updateProjectListButton"
+        app:layout_constraintBottom_toTopOf="@+id/projectSpinner"
         app:layout_constraintEnd_toStartOf="@+id/sendToServerButton"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="@+id/photoImageView" />
@@ -58,19 +58,16 @@
     <Spinner
         android:id="@+id/projectSpinner"
         android:layout_width="197dp"
-        android:layout_height="36dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginBottom="20dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="116dp"
+        android:layout_marginBottom="16dp"
         android:dropDownWidth="match_parent"
-        android:maxHeight="30dp"
         android:popupBackground="@color/white"
         android:spinnerDropDownItemStyle="@style/SpinnerDropDownStyle"
         android:spinnerMode="dialog"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/button_camera"
-        app:layout_constraintStart_toEndOf="@+id/updateProjectListButton"
-        app:layout_constraintTop_toTopOf="@+id/updateProjectListButton" />
+        app:layout_constraintStart_toStartOf="@+id/photoImageView" />
 
     <Button
         android:id="@+id/sendToServerButton"
@@ -84,20 +81,6 @@
         app:layout_constraintEnd_toEndOf="@+id/photoImageView"
         app:layout_constraintTop_toTopOf="@+id/commentEditText"
         app:layout_constraintVertical_bias="0.0" />
-
-    <Button
-        android:id="@+id/updateProjectListButton"
-        android:layout_width="71dp"
-        android:layout_height="36dp"
-        android:layout_centerInParent="true"
-        android:layout_centerHorizontal="true"
-        android:layout_centerVertical="true"
-        android:layout_marginEnd="8dp"
-        android:layout_marginBottom="16dp"
-        android:text="Обновить проекты"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/projectSpinner"
-        app:layout_constraintStart_toStartOf="@+id/photoImageView" />
 
     <Button
         android:id="@+id/button_camera"

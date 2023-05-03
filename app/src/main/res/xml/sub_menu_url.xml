@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="URL Settings">
+        <EditTextPreference
+            app:key="project_list_addresses_post"
+            app:title="Get project list from this address:"
+            app:summary="@string/project_list_addresses_post" />
+        <EditTextPreference
+            app:key="server_address_post_image"
+            app:title="Send to this address:"
+            app:summary="@string/server_address_post_image" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

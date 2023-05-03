@@ -40,7 +40,9 @@ import android.net.wifi.WifiManager
 import android.text.format.Formatter
 import android.view.Menu
 import android.view.MenuItem
+import androidx.preference.Preference
 import androidx.preference.PreferenceManager
+import androidx.preference.PreferenceFragmentCompat
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.CoroutineScope
@@ -53,6 +55,15 @@ import java.net.InetSocketAddress
 import com.example.photo_post.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        private var INSTANCE: MainActivity? = null
+
+        fun getInstance(): MainActivity {
+            return INSTANCE ?: throw IllegalStateException("MainActivity not initialized")
+        }
+    }
+
     private val TAG = "MyActivity"
     private val REQUEST_IMAGE_CAPTURE = 1
     private var currentPhotoPath: String? = null
@@ -66,9 +77,12 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        INSTANCE = this
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -85,9 +99,9 @@ class MainActivity : AppCompatActivity() {
             dispatchTakePictureIntent()
         }
 
-        findViewById<Button>(R.id.updateProjectListButton).setOnClickListener {
-            updateProjectList()
-        }
+//        findViewById<Button>(R.id.updateProjectListButton).setOnClickListener {
+//            updateProjectList()
+//        }
 
         findViewById<Button>(R.id.sendToServerButton).setOnClickListener {
             showDialog()
@@ -151,9 +165,7 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private fun updateProjectList() {
-        val updateButton: Button = findViewById(R.id.updateProjectListButton)
-        updateButton.isEnabled = false
+    public fun updateProjectList(callback: (Boolean) -> Unit) {
 
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this)
         val project_list_addresses_post = sharedPrefs.getString("project_list_addresses_post", "")
@@ -212,7 +224,7 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
                         runOnUiThread {
-                            updateButton.isEnabled = true
+                            callback(true)
                         }
                     }
                 } else {
@@ -220,7 +232,7 @@ class MainActivity : AppCompatActivity() {
                         if (response != "") {
                             Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
                         }
-                        updateButton.isEnabled = true
+                        callback(true)
                     }
                 }
             }
@@ -228,7 +240,6 @@ class MainActivity : AppCompatActivity() {
         else {
             runOnUiThread {
                 Toast.makeText(this, "Check Wi-fi connection", Toast.LENGTH_SHORT).show()
-                findViewById<Button>(R.id.updateProjectListButton).isEnabled = true
             }
         }
     }
@@ -449,7 +460,6 @@ class MainActivity : AppCompatActivity() {
         if (TextUtils.isEmpty(project_list_addresses_post)) {
             runOnUiThread {
                 Toast.makeText(this, "Settings. Project list address is empty", Toast.LENGTH_SHORT).show()
-                findViewById<Button>(R.id.updateProjectListButton).isEnabled = true
                 callback(emptyList(), "Project list address is empty")
             }
         }
@@ -503,7 +513,6 @@ class MainActivity : AppCompatActivity() {
         if (TextUtils.isEmpty(serverAddress)) {
             runOnUiThread {
                 Toast.makeText(this, "Settings. Address is empty", Toast.LENGTH_SHORT).show()
-                findViewById<Button>(R.id.updateProjectListButton).isEnabled = true
                 callback(false, "")
             }
         } else {
@@ -525,7 +534,6 @@ class MainActivity : AppCompatActivity() {
                 override fun onFailure(call: Call, e: IOException) {
                     Log.e(TAG, "Server is unavailable: ${e.message}")
                     runOnUiThread {
-                        findViewById<Button>(R.id.updateProjectListButton).isEnabled = true
                         callback(false, e.message!!)
                     }
                 }
