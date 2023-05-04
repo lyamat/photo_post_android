@@ -64,8 +64,8 @@
     <string name="no_projects">No projects</string>
 
     <string name="server_address">http://&#60;server_address&#62;/</string>
-    <string name="project_list_addresses_post">http://&#60;server_address&#62;/myproject/get_project_list.php</string>
-    <string name="server_address_post_image">http://&#60;server_address&#62;/myproject/upload.php</string>
+    <string name="project_list_addresses_post">http://&#60;server_address&#62;/myproject/api.php</string>
+<!--    <string name="server_address_post_image">http://&#60;server_address&#62;/myproject/upload.php</string>-->
 
     <string name="url1_summary">Enter URL 1</string>
     <string name="url2_summary">Enter URL 2</string>
