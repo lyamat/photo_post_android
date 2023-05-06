@@ -15,24 +15,16 @@ class SubMenuUrlFragment : PreferenceFragmentCompat() {
         setPreferencesFromResource(R.xml.sub_menu_url, rootKey)
 
         val serverAddressPreference: EditTextPreference? = findPreference("server_address_post")
-//        val sendToServerAddressPreference: EditTextPreference? = findPreference("server_address_post_image")
 
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
 
         serverAddressPreference?.text = sharedPreferences.getString("server_address_post", "")
-//        sendToServerAddressPreference?.text = sharedPreferences.getString("server_address_post_image", "")
 
         serverAddressPreference?.setOnBindEditTextListener { editText ->
             if (editText.text.toString().isEmpty()) {
                 editText.setText("http://<server_address>/myproject/api.php")
             }
         }
-
-//        sendToServerAddressPreference?.setOnBindEditTextListener { editText ->
-//            if (editText.text.toString().isEmpty()) {
-//                editText.setText("http://<server_address>/myproject/upload.php")
-//            }
-//        }
 
         serverAddressPreference?.setOnPreferenceChangeListener { preference, newValue ->
             if (!isValidUrl(newValue.toString())) {
@@ -44,18 +36,7 @@ class SubMenuUrlFragment : PreferenceFragmentCompat() {
             true
         }
 
-//        sendToServerAddressPreference?.setOnPreferenceChangeListener { preference, newValue ->
-//            if (!isValidUrl(newValue.toString())) {
-//                Toast.makeText(requireContext(), "Неверный формат URL-адреса", Toast.LENGTH_SHORT).show()
-//                return@setOnPreferenceChangeListener false
-//            }
-//            preference.summary = newValue.toString()
-//            sharedPreferences.edit().putString("server_address_post_image", newValue.toString()).apply()
-//            true
-//        }
-
         serverAddressPreference?.summary = serverAddressPreference?.text
-//        sendToServerAddressPreference?.summary = sendToServerAddressPreference?.text
     }
 
     private fun isValidUrl(url: String): Boolean {

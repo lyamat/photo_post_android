@@ -71,4 +71,9 @@
     <string name="url2_summary">Enter URL 2</string>
     <string name="change_password_summary">Enter New Password</string>
 
+    <string name="edit_url_dialog_title">Изменение комментария</string>
+    <string name="edit_url_dialog_ok">OK</string>
+    <string name="edit_url_dialog_cancel">Cancel</string>
+    <string name="edit_url_dialog_hint">Enter URL here</string>
+
 </resources>

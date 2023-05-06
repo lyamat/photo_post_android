@@ -1,101 +1,128 @@
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/constraintLayout"
+    tools:context=".MainActivity"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    android:fillViewport="true"
+    >
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appBarLayout"
+    <LinearLayout
+        android:id="@+id/linearLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fitsSystemWindows="true"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        android:orientation="vertical"
+        android:layout_marginBottom="10dp">
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
+        <LinearLayout
+            android:id="@+id/appBarLinearLayout"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:layout_constraintVertical_bias="0.0" />
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
 
-    </com.google.android.material.appbar.AppBarLayout>
+            <com.google.android.material.appbar.AppBarLayout
+                android:id="@+id/appBarLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
+                <com.google.android.material.appbar.MaterialToolbar
+                    android:id="@+id/toolbar"
+                    android:layout_width="match_parent"
+                    android:layout_height="?attr/actionBarSize" />
 
-    <ImageView
-        android:id="@+id/photoImageView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginVertical="10dp"
-        android:layout_marginBottom="8dp"
-        android:background="@drawable/image_view_background"
-        android:foreground="@drawable/image_view_border"
-        android:scaleType="fitCenter"
-        app:layout_constraintBottom_toTopOf="@+id/commentEditText"
-        app:layout_constraintDimensionRatio="1000:1300"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.6"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/appBarLayout"
-        app:layout_constraintVertical_bias="0.0" />
+            </com.google.android.material.appbar.AppBarLayout>
+        </LinearLayout>
 
-    <EditText
-        android:id="@+id/commentEditText"
-        style="@style/CommentEditTextStyle"
-        android:layout_width="154dp"
-        android:layout_height="71dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginBottom="16dp"
-        android:hint="Напишите сюда комментарий"
-        android:maxLines="5"
-        app:layout_constraintBottom_toTopOf="@+id/projectSpinner"
-        app:layout_constraintEnd_toStartOf="@+id/sendToServerButton"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="@+id/photoImageView" />
+        <LinearLayout
+            android:id="@+id/ImageLinearLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
 
-    <Spinner
-        android:id="@+id/projectSpinner"
-        android:layout_width="197dp"
-        android:layout_height="48dp"
-        android:layout_marginBottom="16dp"
-        android:dropDownWidth="match_parent"
-        android:popupBackground="@color/white"
-        android:spinnerDropDownItemStyle="@style/SpinnerDropDownStyle"
-        android:spinnerMode="dialog"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="@+id/photoImageView" />
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginVertical="5dp">
 
-    <Button
-        android:id="@+id/sendToServerButton"
-        android:layout_width="162dp"
-        android:layout_height="65dp"
-        android:layout_centerInParent="true"
-        android:layout_centerHorizontal="true"
-        android:layout_centerVertical="true"
-        android:text="Отправить на сервер"
-        app:layout_constraintBottom_toBottomOf="@+id/commentEditText"
-        app:layout_constraintEnd_toEndOf="@+id/photoImageView"
-        app:layout_constraintTop_toTopOf="@+id/commentEditText"
-        app:layout_constraintVertical_bias="0.0" />
+            <ImageView
+                android:id="@+id/photoImageView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/no_picture"
+                android:adjustViewBounds="true"/>
+        </LinearLayout>
 
-    <Button
-        android:id="@+id/button_camera"
-        android:layout_width="77dp"
-        android:layout_height="48dp"
-        android:layout_centerInParent="true"
-        android:layout_centerHorizontal="true"
-        android:layout_centerVertical="true"
-        android:layout_marginEnd="20dp"
-        android:drawableLeft="@android:drawable/ic_menu_camera"
-        android:gravity="center_vertical|center_horizontal"
-        app:layout_constraintBottom_toBottomOf="@+id/projectSpinner"
-        app:layout_constraintEnd_toEndOf="@+id/sendToServerButton"
-        app:layout_constraintHorizontal_bias="0.818"
-        app:layout_constraintStart_toEndOf="@+id/projectSpinner"
-        app:layout_constraintTop_toTopOf="@+id/projectSpinner"
-        app:layout_constraintVertical_bias="1.0" />
+        <LinearLayout
+            android:id="@+id/linearLayoutToBottom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
 
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginVertical="10dp">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+            <LinearLayout
+                android:id="@+id/upLinearLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="10dp">
+
+                <HorizontalScrollView
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="0.8"
+
+                    android:background="@drawable/horizontal_scrollview_border">
+
+                    <EditText
+                        android:id="@+id/commentEditText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="71dp"
+                        android:hint="Напишите сюда комментарий"
+                        android:inputType="text"/>
+
+                </HorizontalScrollView>
+
+                <Button
+                    android:id="@+id/button_camera"
+                    android:layout_width="wrap_content"
+                    android:layout_height="65dp"
+                    android:layout_weight="0"
+                    android:layout_marginLeft="10dp"
+                    android:drawableLeft="@android:drawable/ic_menu_camera"
+                    android:gravity="center_vertical|center_horizontal" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/downLinearLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/sendToServerButton"
+                    android:layout_width="0dp"
+                    android:layout_height="65dp"
+                    android:layout_marginRight="20dp"
+                    android:layout_weight="1"
+                    android:text="Отправить" />
+
+                <Spinner
+                    android:id="@+id/projectSpinner"
+                    android:layout_width="0dp"
+                    android:layout_weight="1.3"
+                    android:layout_height="48dp"
+                    android:dropDownWidth="match_parent"
+                    android:popupBackground="@color/white"
+                    android:spinnerDropDownItemStyle="@style/SpinnerDropDownStyle"
+                    android:spinnerMode="dialog" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

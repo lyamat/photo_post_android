@@ -1,58 +1,59 @@
 package com.example.photo_post
 
-import com.example.photo_post.models.Project
-import com.example.photo_post.image_work.*
-
-import android.os.Bundle
-import android.content.Intent
-import java.io.File
-import java.io.BufferedReader
-import java.io.FileReader
-
-import androidx.appcompat.app.AppCompatActivity
-import androidx.exifinterface.media.ExifInterface
-
-import android.provider.MediaStore
-import androidx.core.content.FileProvider
-import java.text.SimpleDateFormat
-import java.util.*
-import android.os.Environment
-
-import android.graphics.*
-
-import android.util.Log
-import android.widget.*
-
-import okhttp3.*
-import java.io.IOException
-
-import org.json.JSONArray
-import org.json.JSONException
-
-import android.graphics.Bitmap
-import android.graphics.Matrix
-import android.text.TextUtils
-import android.view.View
-import androidx.appcompat.app.AlertDialog
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.net.ConnectivityManager
-import android.net.wifi.WifiManager
-import android.text.format.Formatter
+import android.os.Build
+import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
+import android.text.TextUtils
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
-import androidx.preference.Preference
+import android.view.View
+import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.Spinner
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
+import androidx.exifinterface.media.ExifInterface
 import androidx.preference.PreferenceManager
-import androidx.preference.PreferenceFragmentCompat
-
-import kotlinx.coroutines.*
+import com.example.photo_post.databinding.ActivityMainBinding
+import com.example.photo_post.image_work.convertImageToBase64
+import com.example.photo_post.image_work.getRotatedImageWithExif
+import com.example.photo_post.models.Project
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.FormBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.Response
+import org.json.JSONArray
+import org.json.JSONException
+import java.io.BufferedReader
+import java.io.File
+import java.io.FileReader
+import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-import java.net.Socket
-import java.net.InetSocketAddress
-
-import com.example.photo_post.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 
@@ -99,6 +100,12 @@ class MainActivity : AppCompatActivity() {
 
         populateProjectSpinner()
 
+        val commentEditText = findViewById<EditText>(R.id.commentEditText)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            commentEditText.showSoftInputOnFocus = true;
+        }
+
+
         findViewById<Button>(R.id.button_camera).setOnClickListener {
             dispatchTakePictureIntent()
         }
@@ -106,7 +113,6 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.sendToServerButton).setOnClickListener {
             showDialog()
         }
-
 
         projectSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
@@ -138,6 +144,7 @@ class MainActivity : AppCompatActivity() {
             else -> super.onOptionsItemSelected(item)
         }
     }
+
     private fun populateProjectSpinner() {
         val projectsFile = File(filesDir, "projects.txt")
         val projectNames = mutableListOf<String>()
@@ -398,7 +405,7 @@ class MainActivity : AppCompatActivity() {
                                         val requestBody: RequestBody = FormBody.Builder()
                                             .add("request_command", "upload")
                                             .add("password", change_password!!)
-                                            .add("imageBase64", "TEST_BASE64")
+                                            .add("imageBase64", imageBase64)
                                             .add("project_name", selectedProjectName)
                                             .add("project_id", selectedProjectId)
                                             .add("comment", comment)
