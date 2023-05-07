@@ -80,7 +80,7 @@
                         android:id="@+id/commentEditText"
                         android:layout_width="wrap_content"
                         android:layout_height="71dp"
-                        android:hint="Напишите сюда комментарий"
+                        android:hint="Enter your comment..."
                         android:inputType="text"/>
 
                 </HorizontalScrollView>
@@ -107,8 +107,8 @@
                     android:layout_width="0dp"
                     android:layout_height="65dp"
                     android:layout_marginRight="20dp"
-                    android:layout_weight="1"
-                    android:text="Отправить" />
+                    android:layout_weight="0.6"
+                    android:text="Send" />
 
                 <Spinner
                     android:id="@+id/projectSpinner"

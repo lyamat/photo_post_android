@@ -283,7 +283,7 @@ class MainActivity : AppCompatActivity() {
             }
             photoFile?.also {
                 val photoURI = FileProvider.getUriForFile(this,
-                    "com.example.android.fileprovider",
+                    "com.example.photo_post.fileprovider",
                     photoFile)
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
                 startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
