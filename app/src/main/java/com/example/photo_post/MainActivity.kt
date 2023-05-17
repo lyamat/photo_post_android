@@ -1,7 +1,9 @@
 package com.example.photo_post
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -10,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.text.Editable
 import android.text.TextUtils
 import android.util.Log
 import android.view.Menu
@@ -27,6 +30,8 @@ import android.widget.Spinner
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.exifinterface.media.ExifInterface
 import androidx.preference.PreferenceManager
@@ -53,6 +58,14 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+import com.google.zxing.BinaryBitmap
+import com.google.zxing.MultiFormatReader
+import com.google.zxing.RGBLuminanceSource
+import com.google.zxing.Result
+import com.google.zxing.common.HybridBinarizer
+import android.webkit.URLUtil
+import android.net.Uri
 
 
 class MainActivity : AppCompatActivity() {
@@ -82,6 +95,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
+    private val REQUEST_CODE_SCANNER = 2001
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,9 +121,16 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-        findViewById<Button>(R.id.button_camera).setOnClickListener {
-            dispatchTakePictureIntent()
+        findViewById<ImageView>(R.id.button_camera).setOnClickListener {
+//            dispatchTakePictureIntent()
+            checkCameraPermission()
         }
+
+        findViewById<ImageView>(R.id.button_qr).setOnClickListener {
+            val intent = Intent(this, ScannerActivity::class.java)
+            startActivityForResult(intent, REQUEST_CODE_SCANNER)
+        }
+
 
         findViewById<Button>(R.id.sendToServerButton).setOnClickListener {
             showDialog()
@@ -434,10 +456,8 @@ class MainActivity : AppCompatActivity() {
                                                             Toast.LENGTH_SHORT
                                                         ).show()
                                                     }
-                                                    deletePhotoFile()
 
                                                     Log.e(TAG, logMessage)
-//                                        saveLog(logMessage)
                                                 } else {
                                                     val logMessage = "Error sending request"
                                                     runOnUiThread {
@@ -631,16 +651,79 @@ class MainActivity : AppCompatActivity() {
         logFile.appendText("[$currentDateString]: $logMessage\n")
     }
 
+    fun decodeQRCode(bitmap: Bitmap): String? {
+        val intArray = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(intArray, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        val source = RGBLuminanceSource(bitmap.width, bitmap.height, intArray)
+        val binaryBitmap = BinaryBitmap(HybridBinarizer(source))
+
+        val reader = MultiFormatReader()
+        val result: Result?
+        try {
+            result = reader.decode(binaryBitmap)
+            return result.text
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+        if (requestCode == REQUEST_CODE_SCANNER && resultCode == Activity.RESULT_OK) {
+            val qrCodeResult = data?.getStringExtra("qr_code_result")
+            if (qrCodeResult != null) {
+                Toast.makeText(this, "QR result: $qrCodeResult", Toast.LENGTH_LONG).show()
+
+                // Check if the QR code result is a URL
+                if (URLUtil.isValidUrl(qrCodeResult)) {
+                    AlertDialog.Builder(this)
+                        .setTitle("Переход по URL")
+                        .setMessage("Перейти по ссылке?\n$qrCodeResult")
+                        .setPositiveButton("Да") { _, _ ->
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(qrCodeResult))
+                            startActivity(intent)
+                        }
+                        .setNegativeButton("Нет", null)
+                        .show()
+                }
+                val commentEditText: EditText = findViewById(R.id.commentEditText)
+                commentEditText.text = Editable.Factory.getInstance().newEditable(qrCodeResult)
+
+
+
+            }
+        } else if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             val photoImageView = findViewById<ImageView>(R.id.photoImageView)
             val rotatedBitmap = getRotatedImageWithExif(currentPhotoPath!!)
             photoImageView.setImageBitmap(rotatedBitmap)
 
             CoroutineScope(Dispatchers.IO).launch {
                 imageBase64 = convertImageToBase64(rotatedBitmap)
+                deletePhotoFile()
             }
         }
     }
+
+
+    private val CAMERA_PERMISSION_REQUEST_CODE = 1001
+
+    private fun checkCameraPermission() {
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.CAMERA), CAMERA_PERMISSION_REQUEST_CODE)
+        } else {
+            dispatchTakePictureIntent()
+        }
+    }
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults) // Добавьте эту строку для вызова родительского метода
+        if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                dispatchTakePictureIntent()
+            } else {
+                Toast.makeText(this, "Разрешение на использование камеры отклонено", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
 }
