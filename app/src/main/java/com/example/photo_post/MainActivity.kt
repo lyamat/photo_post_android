@@ -66,6 +66,7 @@ import com.google.zxing.Result
 import com.google.zxing.common.HybridBinarizer
 import android.webkit.URLUtil
 import android.net.Uri
+import com.example.photo_post.models.Qr
 
 
 class MainActivity : AppCompatActivity() {
@@ -296,6 +297,103 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    public fun showQrInfo(callback: (Boolean) -> Unit) {
+
+        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val server_address_post = sharedPrefs.getString("server_address_post", "")
+
+//        val project_list_addresses_post = sharedPrefs.getString("project_list_addresses_post", "")
+
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkInfo = connectivityManager.activeNetworkInfo
+        val isConnected = networkInfo != null && networkInfo.isConnected && networkInfo.type == ConnectivityManager.TYPE_WIFI
+
+        if (isConnected) {
+            val change_password = sharedPrefs.getString("change_password", "")
+
+            if (TextUtils.isEmpty(change_password)) {
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        "Settings. Password is empty",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    callback(true)
+                }
+            }
+            else {
+                checkServerAvailability(server_address_post!!) { isAvailable, response ->
+                    if (isAvailable) {
+                        getProjectList { projectList, message ->
+                            val file = File(filesDir, "projects.txt")
+                            val sb = StringBuilder()
+                            val projectNames = projectList.map { it.projectName }
+                            if (projectList.isNotEmpty()) {
+                                projectListIds.clear()
+                                for (project in projectList) {
+                                    sb.append("${project.projectId}: ${project.projectName}\n")
+                                    projectListIds += project.projectId
+                                }
+                                file.writeText(sb.toString())
+                            } else {
+                                file.writeText("")
+                                if (message.isEmpty()) {
+                                    runOnUiThread {
+                                        Toast.makeText(
+                                            this,
+                                            "Received empty response body",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
+                            }
+
+                            if (message == "Project list address is empty") {
+
+                            } else if (message.isEmpty()) {
+                                runOnUiThread {
+                                    projectAdapter.clear()
+                                    projectAdapter.addAll(projectNames)
+                                    projectAdapter.notifyDataSetChanged()
+                                    populateProjectSpinner()
+                                    if (projectList.isNotEmpty()) {
+                                        runOnUiThread {
+                                            Toast.makeText(
+                                                this,
+                                                "Success. Received ${projectAdapter.count} projects.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
+                            } else {
+                                runOnUiThread {
+                                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                                }
+                            }
+                            runOnUiThread {
+                                callback(true)
+                            }
+                        }
+                    } else {
+                        runOnUiThread {
+                            if (response != "") {
+                                Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
+                            }
+                            callback(true)
+                        }
+                    }
+                }
+            }
+        }
+        else {
+            runOnUiThread {
+                Toast.makeText(this, "Check Wi-fi connection", Toast.LENGTH_SHORT).show()
+                callback(true)
+            }
+        }
+    }
+
     private fun dispatchTakePictureIntent() {
         Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
             val photoFile: File? = try {
@@ -323,25 +421,6 @@ class MainActivity : AppCompatActivity() {
         ).apply {
             currentPhotoPath = absolutePath
         }
-    }
-
-    private fun saveImageToGallery() {
-        val exif = ExifInterface(currentPhotoPath!!)
-        val orientation = exif.getAttributeInt(
-            ExifInterface.TAG_ORIENTATION,
-            ExifInterface.ORIENTATION_UNDEFINED
-        )
-        val matrix = Matrix()
-        when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
-            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
-            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
-        }
-        val bitmap = BitmapFactory.decodeFile(currentPhotoPath)
-        val orientedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-        MediaStore.Images.Media.insertImage(
-            contentResolver, orientedBitmap, "PhotoPost", null
-        )
     }
 
     private fun showDialog() {
@@ -580,6 +659,95 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun getQrInfo(qrCode: String?, callback: (String?, String) -> Unit) {
+        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val server_address_post = sharedPrefs.getString("server_address_post", "")
+
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkInfo = connectivityManager.activeNetworkInfo
+        val isConnected = networkInfo != null && networkInfo.isConnected && networkInfo.type == ConnectivityManager.TYPE_WIFI
+
+        if (isConnected) {
+            val change_password = sharedPrefs.getString("change_password", "")
+
+            if (TextUtils.isEmpty(change_password)) {
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        "Settings. Password is empty",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    callback("","Settings. Password is empty")
+                }
+            }
+            else {
+                checkServerAvailability(server_address_post!!) { isAvailable, response ->
+                    if (isAvailable) {
+                        if (TextUtils.isEmpty(server_address_post)) {
+                            runOnUiThread {
+                                Toast.makeText(
+                                    this,
+                                    "Settings. Server address is empty (from qr_info)",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                callback("", "Server address is empty (from qr_info)")
+                            }
+                        } else {
+                            val client = OkHttpClient()
+
+                            val requestBody: RequestBody = FormBody.Builder()
+                                .add("request_command", "get_qr_info")
+                                .add("password", change_password!!)
+                                .add("qr_code", qrCode!!)
+                                .build()
+
+                            val request: Request = Request.Builder()
+                                .url("$server_address_post") // http://192.168.100.5/myproject/api.php
+                                .post(requestBody)
+                                .build()
+
+
+                            client.newCall(request).enqueue(object : Callback {
+                                override fun onResponse(call: Call, response: Response) {
+                                    if (response.isSuccessful) {
+                                        runOnUiThread {
+                                            val responseBody = response.body?.string()
+//                        val qrInfoList = parseQrInfo(responseBody)
+                                            callback(responseBody, "")
+                                        }
+                                    } else {
+                                        val logMsg = "Response unsuccessful, getting qr info"
+                                        Log.e(TAG, "$logMsg: ${response.message}")
+                                        callback("", "$logMsg: ${response.message}")
+                                    }
+                                }
+
+                                override fun onFailure(call: Call, e: IOException) {
+                                    Log.e(TAG, "Failure, getting qr info: ${e.message}")
+                                    callback("", e.message ?: "")
+                                }
+                            })
+                        }
+                    } else {
+                        runOnUiThread {
+                            if (response != "") {
+                                Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
+                            }
+                            callback("","")
+                        }
+                    }
+                }
+
+            }
+        }
+        else {
+            runOnUiThread {
+                Toast.makeText(this, "Check Wi-fi connection", Toast.LENGTH_SHORT).show()
+                callback("", "Check Wi-fi connection")
+            }
+        }
+    }
+
     private fun parseProjectList(json: String?): List<Project> {
         val projectList = mutableListOf<Project>()
         json?.let {
@@ -630,42 +798,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     private fun deletePhotoFile() {
         val file = File(currentPhotoPath!!)
         if (file.exists()) {
             file.delete()
         }
-    }
-
-    private fun saveLog(logMessage: String) {
-        val logFile = File("some path")
-        if (!logFile.exists()) {
-            logFile.createNewFile()
-        }
-
-        val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.getDefault())
-        val currentTime = System.currentTimeMillis()
-        val currentDateString = dateFormat.format(currentTime)
-
-        logFile.appendText("[$currentDateString]: $logMessage\n")
-    }
-
-    fun decodeQRCode(bitmap: Bitmap): String? {
-        val intArray = IntArray(bitmap.width * bitmap.height)
-        bitmap.getPixels(intArray, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-        val source = RGBLuminanceSource(bitmap.width, bitmap.height, intArray)
-        val binaryBitmap = BinaryBitmap(HybridBinarizer(source))
-
-        val reader = MultiFormatReader()
-        val result: Result?
-        try {
-            result = reader.decode(binaryBitmap)
-            return result.text
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return null
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -687,13 +824,14 @@ class MainActivity : AppCompatActivity() {
                         .setNegativeButton("Нет", null)
                         .show()
                 }
-                val commentEditText: EditText = findViewById(R.id.commentEditText)
-                commentEditText.text = Editable.Factory.getInstance().newEditable(qrCodeResult)
 
-
-
+                getQrInfo(qrCodeResult) { qrInfoJson, message ->
+                    val commentEditText: EditText = findViewById(R.id.commentEditText)
+                    commentEditText.text = Editable.Factory.getInstance().newEditable(qrInfoJson)
+                }
             }
-        } else if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+        }
+        else if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             val photoImageView = findViewById<ImageView>(R.id.photoImageView)
             val rotatedBitmap = getRotatedImageWithExif(currentPhotoPath!!)
             photoImageView.setImageBitmap(rotatedBitmap)
