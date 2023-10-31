@@ -65,7 +65,7 @@
 
     <string name="server_address">http://&#60;server_address&#62;/</string>
     <string name="project_list_addresses_post">http://&#60;server_address&#62;/myproject/api.php</string>
-<!--    <string name="server_address_post_image">http://&#60;server_address&#62;/myproject/upload.php</string>-->
+    <!--    <string name="server_address_post_image">http://&#60;server_address&#62;/myproject/upload.php</string>-->
 
     <string name="url1_summary">Enter URL 1</string>
     <string name="url2_summary">Enter URL 2</string>
@@ -75,5 +75,7 @@
     <string name="edit_url_dialog_ok">OK</string>
     <string name="edit_url_dialog_cancel">Cancel</string>
     <string name="edit_url_dialog_hint">Enter URL here</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 
 </resources>

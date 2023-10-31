@@ -67,6 +67,7 @@ import com.google.zxing.common.HybridBinarizer
 import android.webkit.URLUtil
 import android.net.Uri
 import com.example.photo_post.models.Qr
+import com.google.android.material.bottomnavigation.BottomNavigationView
 
 
 class MainActivity : AppCompatActivity() {
@@ -110,46 +111,69 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
 
-        val projectSpinner: Spinner = findViewById(R.id.projectSpinner)
-        projectAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item)
-        projectSpinner.adapter = projectAdapter
-
-        populateProjectSpinner()
-
-        val commentEditText = findViewById<EditText>(R.id.commentEditText)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            commentEditText.showSoftInputOnFocus = true;
-        }
-
-
-        findViewById<ImageView>(R.id.button_camera).setOnClickListener {
-//            dispatchTakePictureIntent()
-            checkCameraPermission()
-        }
-
-        findViewById<ImageView>(R.id.button_qr).setOnClickListener {
-            val intent = Intent(this, ScannerActivity::class.java)
-            startActivityForResult(intent, REQUEST_CODE_SCANNER)
-        }
-
-
-        findViewById<Button>(R.id.sendToServerButton).setOnClickListener {
-            showDialog()
-        }
-
-        projectSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                val selectedProject = parent.getItemAtPosition(position) as String
-                selectedProjectName = selectedProject
-                if(projectListIds.isNotEmpty()) {
-                    selectedProjectId = projectListIds[position].toString()
+        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottomNavigationView)
+        bottomNavigationView.setOnNavigationItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.photoItem -> {
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.frameLayout, PhotoFragment())
+                        .commit()
+                    return@setOnNavigationItemSelectedListener true
+                }
+                R.id.qrItem -> {
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.frameLayout, QrFragment())
+                        .commit()
+                    return@setOnNavigationItemSelectedListener true
                 }
             }
-
-            override fun onNothingSelected(parent: AdapterView<*>) {
-                // Do nothing
-            }
+            false
         }
+
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.frameLayout, PhotoFragment())
+            .commit()
+
+//        val projectSpinner: Spinner = findViewById(R.id.projectSpinner)
+//        projectAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item)
+//        projectSpinner.adapter = projectAdapter
+//
+//        populateProjectSpinner()
+//
+//        val commentEditText = findViewById<EditText>(R.id.commentEditText)
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+//            commentEditText.showSoftInputOnFocus = true;
+//        }
+//
+//
+//        findViewById<ImageView>(R.id.button_camera).setOnClickListener {
+////            dispatchTakePictureIntent()
+//            checkCameraPermission()
+//        }
+//
+//        findViewById<ImageView>(R.id.button_qr).setOnClickListener {
+//            val intent = Intent(this, ScannerActivity::class.java)
+//            startActivityForResult(intent, REQUEST_CODE_SCANNER)
+//        }
+//
+//
+//        findViewById<Button>(R.id.sendToServerButton).setOnClickListener {
+//            showDialog()
+//        }
+//
+//        projectSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+//            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+//                val selectedProject = parent.getItemAtPosition(position) as String
+//                selectedProjectName = selectedProject
+//                if(projectListIds.isNotEmpty()) {
+//                    selectedProjectId = projectListIds[position].toString()
+//                }
+//            }
+//
+//            override fun onNothingSelected(parent: AdapterView<*>) {
+//                // Do nothing
+//            }
+//        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
