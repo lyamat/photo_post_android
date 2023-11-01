@@ -4,9 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
 import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Bundle
@@ -18,9 +15,6 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.view.WindowManager
-import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -33,7 +27,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.exifinterface.media.ExifInterface
 import androidx.preference.PreferenceManager
 import com.example.photo_post.databinding.ActivityMainBinding
 import com.example.photo_post.image_work.convertImageToBase64
@@ -57,16 +50,8 @@ import java.io.FileReader
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
-
-import com.google.zxing.BinaryBitmap
-import com.google.zxing.MultiFormatReader
-import com.google.zxing.RGBLuminanceSource
-import com.google.zxing.Result
-import com.google.zxing.common.HybridBinarizer
 import android.webkit.URLUtil
 import android.net.Uri
-import com.example.photo_post.models.Qr
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
 
@@ -137,7 +122,7 @@ class MainActivity : AppCompatActivity() {
 //        val projectSpinner: Spinner = findViewById(R.id.projectSpinner)
 //        projectAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item)
 //        projectSpinner.adapter = projectAdapter
-//
+
 //        populateProjectSpinner()
 //
 //        val commentEditText = findViewById<EditText>(R.id.commentEditText)
@@ -225,98 +210,55 @@ class MainActivity : AppCompatActivity() {
     }
 
     public fun updateProjectList(callback: (Boolean) -> Unit) {
-
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this)
         val server_address_post = sharedPrefs.getString("server_address_post", "")
 
-//        val project_list_addresses_post = sharedPrefs.getString("project_list_addresses_post", "")
-
-        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val connectivityManager =
+            getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkInfo = connectivityManager.activeNetworkInfo
-        val isConnected = networkInfo != null && networkInfo.isConnected && networkInfo.type == ConnectivityManager.TYPE_WIFI
+        val isConnected =
+            networkInfo != null && networkInfo.isConnected && networkInfo.type == ConnectivityManager.TYPE_WIFI
 
         if (isConnected) {
             val change_password = sharedPrefs.getString("change_password", "")
-
-            if (TextUtils.isEmpty(change_password)) {
-                runOnUiThread {
-                    Toast.makeText(
-                        this,
-                        "Settings. Password is empty",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    callback(true)
+            getProjectList { projectList, message ->
+                val file = File(filesDir, "projects.txt")
+                val sb = StringBuilder()
+                val projectNames = projectList.map { it.projectName }
+                if (projectList.isNotEmpty()) {
+                    projectListIds.clear()
+                    for (project in projectList) {
+                        sb.append("${project.projectId}: ${project.projectName}\n")
+                        projectListIds += project.projectId
+                    }
+                    file.writeText(sb.toString())
+                } else {
+                    file.writeText("")
                 }
-            }
-            else {
-                checkServerAvailability(server_address_post!!) { isAvailable, response ->
-                    if (isAvailable) {
-                        getProjectList { projectList, message ->
-                            val file = File(filesDir, "projects.txt")
-                            val sb = StringBuilder()
-                            val projectNames = projectList.map { it.projectName }
-                            if (projectList.isNotEmpty()) {
-                                projectListIds.clear()
-                                for (project in projectList) {
-                                    sb.append("${project.projectId}: ${project.projectName}\n")
-                                    projectListIds += project.projectId
-                                }
-                                file.writeText(sb.toString())
-                            } else {
-                                file.writeText("")
-                                if (message.isEmpty()) {
-                                    runOnUiThread {
-                                        Toast.makeText(
-                                            this,
-                                            "Received empty response body",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
-                                }
-                            }
 
-                            if (message == "Project list address is empty") {
+                if (message == "Project list address is empty") {
 
-                            } else if (message.isEmpty()) {
-                                runOnUiThread {
-                                    projectAdapter.clear()
-                                    projectAdapter.addAll(projectNames)
-                                    projectAdapter.notifyDataSetChanged()
-                                    populateProjectSpinner()
-                                    if (projectList.isNotEmpty()) {
-                                        runOnUiThread {
-                                            Toast.makeText(
-                                                this,
-                                                "Success. Received ${projectAdapter.count} projects.",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                    }
-                                }
-                            } else {
-                                runOnUiThread {
-                                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-                                }
-                            }
+                } else if (message.isEmpty()) {
+                    runOnUiThread {
+                        projectAdapter.clear()
+                        projectAdapter.addAll(projectNames)
+                        projectAdapter.notifyDataSetChanged()
+                        populateProjectSpinner()
+                        if (projectList.isNotEmpty()) {
                             runOnUiThread {
-                                callback(true)
+                                Toast.makeText(
+                                    this,
+                                    "Success. Received ${projectAdapter.count} projects.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
-                        }
-                    } else {
-                        runOnUiThread {
-                            if (response != "") {
-                                Toast.makeText(this, response, Toast.LENGTH_SHORT).show()
-                            }
-                            callback(true)
                         }
                     }
                 }
-            }
-        }
-        else {
-            runOnUiThread {
-                Toast.makeText(this, "Check Wi-fi connection", Toast.LENGTH_SHORT).show()
-                callback(true)
+
+                runOnUiThread {
+                    callback(true)
+                }
             }
         }
     }
@@ -878,7 +820,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults) // Добавьте эту строку для вызова родительского метода
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 dispatchTakePictureIntent()
