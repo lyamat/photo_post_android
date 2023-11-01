@@ -5,9 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
-import android.text.TextUtils
 import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
@@ -18,7 +18,8 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
 import com.example.photo_post.image_work.convertImageToBase64
 import com.example.photo_post.image_work.getRotatedImageWithExif
@@ -38,18 +39,17 @@ private val REQUEST_CODE_SCANNER = 2001
 
 private val TAG = "QRFragment"
 
-/**
- * A simple [Fragment] subclass.
- * Use the [QrFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
+class QrViewModel : ViewModel() {
+    var qrResultText: String = ""
+}
+
 class QrFragment : Fragment() {
 
+    private lateinit var viewModel: QrViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-        }
+        viewModel = ViewModelProvider(requireActivity()).get(QrViewModel::class.java)
     }
 
     override fun onCreateView(
@@ -59,11 +59,23 @@ class QrFragment : Fragment() {
 
         val view = inflater.inflate(R.layout.fragment_qr, container, false)
 
+        val qrResultEditText = view.findViewById<EditText>(R.id.qrResultEditText)
+        qrResultEditText.setText(viewModel.qrResultText)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            qrResultEditText.showSoftInputOnFocus = true
+        }
+
         view.findViewById<ImageView>(R.id.button_qr).setOnClickListener {
             val intent = Intent(requireContext(), ScannerActivity::class.java)
             startActivityForResult(intent, REQUEST_CODE_SCANNER)
         }
         return view
+    }
+
+    override fun onPause() {
+        super.onPause()
+        viewModel.qrResultText = view?.findViewById<EditText>(R.id.qrResultEditText)?.text.toString()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -87,8 +99,8 @@ class QrFragment : Fragment() {
                 }
 
                 getQrInfo(qrCodeResult) { qrInfoJson, message ->
-                    val commentEditText = view?.findViewById<EditText>(R.id.commentEditText)
-                    commentEditText?.text = Editable.Factory.getInstance().newEditable(qrInfoJson)
+                    val qrResultEditText = view?.findViewById<EditText>(R.id.qrResultEditText)
+                    qrResultEditText?.text = Editable.Factory.getInstance().newEditable(qrInfoJson)
                 }
             }
         }
@@ -141,13 +153,4 @@ class QrFragment : Fragment() {
             })
         }
         }
-
-    companion object {
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            QrFragment().apply {
-                arguments = Bundle().apply {
-                }
-            }
-    }
 }

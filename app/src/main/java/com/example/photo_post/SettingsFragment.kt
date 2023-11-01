@@ -49,9 +49,9 @@ open class SettingsFragment : PreferenceFragmentCompat() {
 
         updatePreference?.onPreferenceClickListener = Preference.OnPreferenceClickListener {
             updatePreference?.isEnabled = false
-            mainActivityProvider?.getMainActivity()?.updateProjectList { success ->
-                updatePreference?.isEnabled = true
-            }
+//            mainActivityProvider?.getMainActivity()?.updateProjectList { success ->
+//                updatePreference?.isEnabled = true
+//            }
             true
         }
 

@@ -11,22 +11,33 @@
         android:id="@+id/button_qr"
         android:layout_width="183dp"
         android:layout_height="164dp"
-        android:layout_marginBottom="372dp"
+        android:layout_marginTop="384dp"
         android:background="@drawable/rounded_background"
-        android:gravity="center_vertical|center_horizontal"
         android:src="@drawable/baseline_qr_code_scanner_24"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <EditText
-        android:id="@+id/commentEditText"
-        android:layout_width="wrap_content"
-        android:layout_height="50dp"
-        android:hint="Enter your comment..."
-        android:inputType="text"
-        app:layout_constraintBottom_toTopOf="@+id/button_qr"
+        app:layout_constraintBottom_toTopOf="@+id/horizontalScrollView5"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"/>
+        android:layout_marginBottom="20dp"/>
+
+    <HorizontalScrollView
+        android:id="@+id/horizontalScrollView5"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+
+        android:layout_marginBottom="44dp"
+        android:background="@drawable/horizontal_scrollview_border"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <EditText
+            android:id="@+id/qrResultEditText"
+            android:layout_width="wrap_content"
+            android:layout_height="50dp"
+            android:hint="QR Scan Result..."
+            android:inputType="text" />
+
+    </HorizontalScrollView>
+
+
 </androidx.constraintlayout.widget.ConstraintLayout>
