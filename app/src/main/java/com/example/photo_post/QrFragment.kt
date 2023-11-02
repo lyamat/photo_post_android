@@ -21,8 +21,11 @@ import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.photo_post.image_work.convertImageToBase64
 import com.example.photo_post.image_work.getRotatedImageWithExif
+import com.example.photo_post.models.Instrument
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -33,6 +36,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
+import org.json.JSONObject
 import java.io.IOException
 
 private val REQUEST_CODE_SCANNER = 2001
@@ -46,6 +50,8 @@ class QrViewModel : ViewModel() {
 class QrFragment : Fragment() {
 
     private lateinit var viewModel: QrViewModel
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var adapter: InstrumentAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,12 +65,10 @@ class QrFragment : Fragment() {
 
         val view = inflater.inflate(R.layout.fragment_qr, container, false)
 
-        val qrResultEditText = view.findViewById<EditText>(R.id.qrResultEditText)
-        qrResultEditText.setText(viewModel.qrResultText)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            qrResultEditText.showSoftInputOnFocus = true
-        }
+        recyclerView = view.findViewById<RecyclerView>(R.id.recyclerView)
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        adapter = InstrumentAdapter(mutableListOf())
+        recyclerView.adapter = adapter
 
         view.findViewById<ImageView>(R.id.button_qr).setOnClickListener {
             val intent = Intent(requireContext(), ScannerActivity::class.java)
@@ -73,9 +77,10 @@ class QrFragment : Fragment() {
         return view
     }
 
+
     override fun onPause() {
         super.onPause()
-        viewModel.qrResultText = view?.findViewById<EditText>(R.id.qrResultEditText)?.text.toString()
+//        viewModel.qrResultText = view?.findViewById<EditText>(R.id.qrResultEditText)?.text.toString()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -99,12 +104,19 @@ class QrFragment : Fragment() {
                 }
 
                 getQrInfo(qrCodeResult) { qrInfoJson, message ->
-                    val qrResultEditText = view?.findViewById<EditText>(R.id.qrResultEditText)
-                    qrResultEditText?.text = Editable.Factory.getInstance().newEditable(qrInfoJson)
+
+                    val jsonObject = JSONObject(qrInfoJson)
+
+                    val instrumentName = jsonObject.getString("qr_instrument")
+                    val instrumentProperties = jsonObject.getString("qr_instrument_properties").split(",")
+                    val instrument = Instrument(instrumentName, instrumentProperties)
+
+                    adapter.addInstrument(instrument)
                 }
             }
         }
     }
+
 
     private fun getQrInfo(qrCode: String?, callback: (String?, String) -> Unit) {
         val activity = requireActivity()
