@@ -5,22 +5,25 @@
     android:id="@+id/constraintLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".QrFragment">
+    tools:context=".CartFragment">
 
-    <ImageView
+    <TextView
         android:id="@+id/button_qr"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
         android:layout_margin="20dp"
         android:background="@drawable/rounded_background"
-        android:src="@drawable/baseline_qr_code_scanner_24"
+        android:text="Send Cart"
+        android:textAlignment="center"
+        android:textColor="@android:color/white"
+        android:textSize="30dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/instrumentRecyclerView"/>
+        app:layout_constraintTop_toBottomOf="@id/cartRecyclerView" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/instrumentRecyclerView"
+        android:id="@+id/cartRecyclerView"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintBottom_toTopOf="@+id/button_qr"
@@ -29,3 +32,4 @@
         app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+

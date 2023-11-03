@@ -6,19 +6,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NavUtils
 
 
-interface MainActivityProvider {
-    fun getMainActivity(): MainActivity?
-}
 
-class SettingsActivity : AppCompatActivity(), MainActivityProvider {
-
-    override fun getMainActivity(): MainActivity? {
-        return if (isFinishing) {
-            null
-        } else {
-            MainActivity.getInstance()
-        }
-    }
+class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         supportFragmentManager

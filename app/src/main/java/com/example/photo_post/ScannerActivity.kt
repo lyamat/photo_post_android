@@ -29,7 +29,7 @@ class ScannerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_scanner)
         scanner_view = findViewById(R.id.scanner_view)
-        setupPermissions()
+//        setupPermissions()
         codeScanner()
 
         val backButton = findViewById<ImageButton>(R.id.backButton)

@@ -1,34 +1,14 @@
 package com.example.photo_post
 
-import android.content.Context
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
-import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.net.MalformedURLException
-import java.net.URL
+import com.example.photo_post.server.NetworkHelper
 
 
 open class SettingsFragment : PreferenceFragmentCompat() {
-
-    private var mainActivityProvider: MainActivityProvider? = null
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        if (context is MainActivityProvider) {
-            mainActivityProvider = context
-        }
-    }
-
-
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
 
@@ -48,16 +28,55 @@ open class SettingsFragment : PreferenceFragmentCompat() {
         }
 
         updatePreference?.onPreferenceClickListener = Preference.OnPreferenceClickListener {
+            val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+
             updatePreference?.isEnabled = false
-//            mainActivityProvider?.getMainActivity()?.updateProjectList { success ->
-//                updatePreference?.isEnabled = true
-//            }
+            NetworkHelper(requireContext()).checkServerAvailability() { isServerAvailable, message ->
+                if (isServerAvailable) {
+                    NetworkHelper(requireContext()).updateProjectList { projectList, message ->
+                        if (projectList.isNotEmpty()) {
+                            sharedPrefs.edit().putStringSet("projectNames", projectList.map { it.projectName }.toSet()).apply()
+//                            sharedPrefs.edit().putString("selectedProjectName", projectList[0].projectName).apply()
+//                            editor.putStringSet("projectListIds", projectList.map { it.projectId.toString() }.toSet()).apply()
+
+                            requireActivity().runOnUiThread {
+                                Toast.makeText(
+                                    requireContext(),
+                                    "Success. Received ${projectList.size} projects.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                updatePreference?.isEnabled = true
+                            }
+                        } else {
+                            sharedPrefs.edit().putStringSet("projectNames", emptySet()).apply()
+//                            sharedPrefs.edit().putString("selectedProjectName", projectList[0].projectName).apply()
+                            requireActivity().runOnUiThread {
+                                Toast.makeText(
+                                    requireContext(),
+                                    message,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                updatePreference?.isEnabled = true
+                            }
+
+                        }
+
+                    }
+                }
+                else {
+                    requireActivity().runOnUiThread {
+                        Toast.makeText(
+                            activity,
+                            message,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        updatePreference?.isEnabled = true
+                    }
+                }
+            }
+
             true
         }
 
-
     }
 }
-
-
-

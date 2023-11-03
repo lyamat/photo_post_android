@@ -31,7 +31,7 @@
 
                 android:hint="1"
                 app:layout_constraintBottom_toTopOf="@+id/instrumentPropertiesTextView"
-                app:layout_constraintEnd_toStartOf="@+id/addInstrumentToCartButton"
+                app:layout_constraintEnd_toStartOf="@+id/decreaseInstrumentButton"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
@@ -42,11 +42,11 @@
                 android:layout_margin="10dp"
                 android:hint="2"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/addInstrumentToCartButton"
+                app:layout_constraintEnd_toStartOf="@+id/decreaseInstrumentButton"
                 app:layout_constraintStart_toStartOf="parent" />
 
             <ImageView
-                android:id="@+id/deleteInstrumentButton"
+                android:id="@+id/deleteInstrumentFromCartButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_margin="10dp"
@@ -57,15 +57,39 @@
                 app:layout_constraintTop_toTopOf="parent" />
 
             <ImageView
-                android:id="@+id/addInstrumentToCartButton"
+                android:id="@+id/increaseInstrumentButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_margin="20dp"
+                android:layout_marginRight="30dp"
                 android:gravity="center_vertical|center_horizontal"
-                android:src="@drawable/baseline_add_shopping_cart_24"
+                android:src="@drawable/baseline_add_20"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/deleteInstrumentButton"
+                app:layout_constraintEnd_toStartOf="@id/deleteInstrumentFromCartButton"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <ImageView
+
+                android:id="@+id/decreaseInstrumentButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:gravity="center_vertical|center_horizontal"
+                android:src="@drawable/baseline_remove_20"
+                app:layout_constraintEnd_toStartOf="@id/instrumentQuantityTextView"
+                app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintTop_toTopOf="parent"/>
+
+            <TextView
+                android:id="@+id/instrumentQuantityTextView"
+                android:layout_width="40dp"
+                android:layout_height="24dp"
+                android:layout_margin="10dp"
+                android:hint="num"
+                android:textAlignment="center"
+                app:layout_constraintEnd_toStartOf="@id/increaseInstrumentButton"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintTop_toTopOf="parent"/>
+
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.cardview.widget.CardView>

@@ -20,13 +20,6 @@ class SubMenuPasswordFragment : PreferenceFragmentCompat() {
         val change_password: EditTextPreference? = findPreference("change_password")
         change_password?.text = sharedPreferences.getString("change_password", "")
 
-//        change_password?.setOnBindEditTextListener { editText ->
-//            editText?.let {
-//                it.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-//                it.setSelection(it.text.length)
-//            }
-//        }
-
         change_password?.setSummaryProvider {
             val password = sharedPreferences.getString("change_password", "")
             "•".repeat(password?.length ?: 0)

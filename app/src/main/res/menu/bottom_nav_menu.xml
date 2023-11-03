@@ -11,12 +11,12 @@
         android:id="@+id/qrItem"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:icon="@drawable/baseline_qr_code_scanner_24"
-        android:title="Qr" />
+        android:icon="@drawable/baseline_construction_24"
+        android:title="Instruments" />
     <item
-        android:id="@+id/homeItem"
+        android:id="@+id/cartItem"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:icon="@drawable/baseline_home_24"
-        android:title="Home" />
+        android:icon="@drawable/baseline_add_shopping_cart_24"
+        android:title="Cart" />
 </menu>

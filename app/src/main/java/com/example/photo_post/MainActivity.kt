@@ -66,10 +66,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var binding: ActivityMainBinding
+    private val CAMERA_PERMISSION_REQUEST_CODE = 1
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        checkCameraPermission()
 
         INSTANCE = this
 
@@ -90,6 +94,12 @@ class MainActivity : AppCompatActivity() {
                     R.id.qrItem -> {
                         supportFragmentManager.beginTransaction()
                             .replace(R.id.frameLayout, QrFragment())
+                            .commit()
+                        return@setOnNavigationItemSelectedListener true
+                    }
+                    R.id.cartItem -> {
+                        supportFragmentManager.beginTransaction()
+                            .replace(R.id.frameLayout, CartFragment())
                             .commit()
                         return@setOnNavigationItemSelectedListener true
                     }
@@ -120,6 +130,33 @@ class MainActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    private fun checkCameraPermission() {
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(android.Manifest.permission.CAMERA),
+                CAMERA_PERMISSION_REQUEST_CODE
+            )
+        } else {
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            CAMERA_PERMISSION_REQUEST_CODE -> {
+                if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+                } else {
+                }
+                return
+            }
+            else -> {
+            }
+        }
     }
 
 
