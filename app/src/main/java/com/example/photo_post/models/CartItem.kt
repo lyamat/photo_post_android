@@ -4,7 +4,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 
 data class CartItem(
-    val instrument: Instrument, var quantity: Int
+    val instrument: Instrument,
+    var quantity: Double
 )
 
 

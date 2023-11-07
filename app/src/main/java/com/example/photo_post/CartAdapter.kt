@@ -1,95 +1,122 @@
 package com.example.photo_post
 
+import android.content.Context
 import android.text.InputFilter
 import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
+import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.photo_post.models.Cart
-import com.example.photo_post.models.Instrument
+import com.example.photo_post.server.NetworkHelper
 
-class CartAdapter(private val cart: Cart, private val viewModel: SharedViewModel) : RecyclerView.Adapter<CartAdapter.CartViewHolder>() {
-
-    class CartViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val instrumentNameTextView = itemView.findViewById<TextView>(R.id.instrumentNameTextView)
-        val instrumentPropertiesTextView = itemView.findViewById<TextView>(R.id.instrumentPropertiesTextView)
-        val deleteInstrumentFromCartButton = itemView.findViewById<ImageView>(R.id.deleteInstrumentFromCartButton)
-        val instrumentQuantityTextView = itemView.findViewById<TextView>(R.id.instrumentQuantityTextView)
-
-        val increaseInstrumentButton = itemView.findViewById<ImageView>(R.id.increaseInstrumentButton)
-        val decreaseInstrumentButton = itemView.findViewById<ImageView>(R.id.decreaseInstrumentButton)
+class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<CartAdapter.CartAdapterViewHolder>() {
+    class CartAdapterViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val cartNameTextView = itemView.findViewById<TextView>(R.id.cartNameTextView)
+        val editCartButton = itemView.findViewById<TextView>(R.id.editCartButton)
+        val sendCartButton = itemView.findViewById<TextView>(R.id.sendCartButton)
+        val childRecyclerView = itemView.findViewById<RecyclerView>(R.id.childRecyclerView)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CartViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_cart_instrument, parent, false)
-        return CartViewHolder(view)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CartAdapterViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_cart, parent, false)
+        return CartAdapterViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: CartViewHolder, position: Int) {
-        val cartItem = cart.cartItems[position]
-        val instrument = cartItem.instrument
-        holder.instrumentNameTextView.text = instrument.instrumentName
-        holder.instrumentPropertiesTextView.text = instrument.instrumentProperties.joinToString(", ")
-        holder.instrumentQuantityTextView.text = cartItem.quantity.toString()
+    override fun getItemCount(): Int {
+        return if (viewModel.cartListFromServer.isEmpty()) 1
+        else viewModel.cartListFromServer.size
+    }
 
-        holder.deleteInstrumentFromCartButton.setOnClickListener {
-            cart.cartItems.removeAt(position)
-            notifyItemRemoved(position)
-            notifyItemRangeChanged(position, cart.cartItems.size)
+    override fun onBindViewHolder(holder: CartAdapterViewHolder, position: Int) {
+        val cart: Cart
+        if (viewModel.cartListFromServer.isEmpty())
+        {
+            holder.sendCartButton.visibility = View.VISIBLE
+            holder.editCartButton.visibility = View.INVISIBLE
+            cart = viewModel.currentCart
+        }
+        else cart = viewModel.cartListFromServer[position]
+        holder.cartNameTextView.text = cart.cartName
+
+        holder.childRecyclerView.setHasFixedSize(false)
+        holder.childRecyclerView.layoutManager = LinearLayoutManager(holder.itemView.context)
+
+        if (viewModel.cartListFromServer.isNotEmpty()) {
+            val adapter = InstrumentInfoAdapter(cart.cartItems)
+            holder.childRecyclerView.adapter = adapter
+        }
+        else {
+            val adapter = InstrInCartAdapter(cart, viewModel)
+            holder.childRecyclerView.adapter = adapter
         }
 
-        holder.increaseInstrumentButton.setOnClickListener {
-            if (cartItem.quantity < 999) {
-                cartItem.quantity++
-                holder.instrumentQuantityTextView.text = cartItem.quantity.toString()
-            }
+        holder.editCartButton.setOnClickListener {
+            viewModel.currentCart = viewModel.cartListFromServer[position]
+            viewModel.cartListFromServer.clear()
+            val adapter = InstrInCartAdapter(viewModel.currentCart, viewModel)
+            holder.childRecyclerView.adapter = adapter
+            notifyDataSetChanged()
         }
 
-        holder.decreaseInstrumentButton.setOnClickListener {
-            if (cartItem.quantity > 1) {
-                cartItem.quantity--
-                holder.instrumentQuantityTextView.text = cartItem.quantity.toString()
-            }
-        }
+        holder.cartNameTextView.setOnClickListener {
+            if (holder.editCartButton.visibility == View.INVISIBLE) {
+                val builder = AlertDialog.Builder(it.context)
+                builder.setTitle("Change cart name:")
 
-        holder.instrumentQuantityTextView.setOnClickListener {
-            val builder = AlertDialog.Builder(it.context)
-            builder.setTitle("Input quantity:")
+                val input = EditText(it.context)
+                input.inputType = InputType.TYPE_CLASS_TEXT
+                input.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(20))
 
-            val input = EditText(it.context)
-            input.inputType = InputType.TYPE_CLASS_NUMBER
-            input.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(3))
-            builder.setView(input)
+                input.setText(holder.cartNameTextView.text.toString())
+                input.requestFocus()
 
-            builder.setPositiveButton("OK") { dialog, _ ->
-                if (input.text.isNotEmpty()) {
-                    val quantity = input.text.toString().toInt()
-                    if (quantity in 1..999) {
-                        val existingItem =
-                            viewModel.cart.cartItems.find { it.instrument == instrument }
-                        if (existingItem != null) {
-                            existingItem.quantity = quantity
-                        } else {
-                            viewModel.addToCart(instrument, quantity)
-                        }
+                builder.setView(input)
+
+                builder.setPositiveButton("OK") { dialog, _ ->
+                    if (input.text.isNotEmpty()) {
+                        viewModel.currentCart.cartName = input.text.toString()
+                        val adapter = InstrInCartAdapter(viewModel.currentCart, viewModel)
+                        holder.childRecyclerView.adapter = adapter
                         notifyDataSetChanged()
                     }
                     dialog.dismiss()
                 }
-            }
-            builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
 
-            builder.show()
+                builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
+
+                val dialog = builder.create()
+                dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+                dialog.show()
+
+                input.postDelayed({
+                    val imm =
+                        it.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+                }, 100)
+            }
         }
 
-    }
+        holder.sendCartButton.setOnClickListener {
+            NetworkHelper(it.context).uploadCart(viewModel) { isUploaded, message ->
+                if (isUploaded) {
 
-    override fun getItemCount() = cart.cartItems.size
+                }
+                else {
+
+                }
+            }
+        }
+
+
+
+    }
 
 }

@@ -5,20 +5,24 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.fragment.app.viewModels
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.photo_post.models.Cart
+import com.example.photo_post.models.CartItem
 import com.example.photo_post.models.Instrument
+import com.example.photo_post.server.NetworkHelper
 
 class CartFragment : Fragment() {
 
-    private lateinit var cartRecyclerView: RecyclerView
+    private lateinit var instrInCartRecyclerView: RecyclerView
     private lateinit var viewModel: SharedViewModel
-    private lateinit var adapter: CartAdapter
+    private lateinit var instrInCartAdapter: CartAdapter
+    private lateinit var getAllCartsButton: TextView
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,13 +36,40 @@ class CartFragment : Fragment() {
 
         val view = inflater.inflate(R.layout.fragment_cart, container, false)
 
-        cartRecyclerView = view.findViewById<RecyclerView>(R.id.cartRecyclerView)
-        cartRecyclerView.layoutManager = LinearLayoutManager(requireContext())
+        instrInCartRecyclerView = view.findViewById(R.id.instrInCartRecyclerView)
+        instrInCartRecyclerView.layoutManager = LinearLayoutManager(requireContext())
+        instrInCartAdapter = CartAdapter(viewModel)
+        instrInCartRecyclerView.adapter = instrInCartAdapter
 
-        adapter = CartAdapter(viewModel.cart, viewModel)
+        getAllCartsButton = view.findViewById(R.id.getAllCartsButton)
 
-        cartRecyclerView.adapter = adapter
+        getAllCartsButton.setOnClickListener {
+            NetworkHelper(it.context).getUserCarts() { carts, message ->
+                activity?.runOnUiThread {
+                    if (carts.isNotEmpty()) {
+                        viewModel.cartListFromServer = carts
+                        val adapter = CartAdapter(viewModel)
+                        instrInCartRecyclerView.adapter = adapter
+
+                        viewModel.cartListFromServerLiveData.value = viewModel.cartListFromServer
+                    } else {
+                        // Handle the case where carts is empty
+                    }
+                }
+            }
+        }
+
+        viewModel.cartListFromServerLiveData.observe(viewLifecycleOwner, Observer { cartList ->
+            if (cartList.isNotEmpty()) {
+                getAllCartsButton.visibility = View.GONE
+            } else {
+                getAllCartsButton.visibility = View.VISIBLE
+            }
+        })
+
+
 
         return view
     }
+
 }

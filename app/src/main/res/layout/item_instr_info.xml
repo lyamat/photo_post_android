@@ -15,30 +15,28 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:cardCornerRadius="10dp"
-        app:cardBackgroundColor="#D1CCCC"
         >
 
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_margin="2dp"
             android:background="#D8E1FA">
 
             <TextView
                 android:id="@+id/instrNameTextView"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+
                 android:layout_marginTop="10dp"
                 android:layout_marginBottom="10dp"
                 android:layout_marginStart="10dp"
                 android:layout_marginEnd="30dp"
+                android:textSize="20dp"
 
                 android:hint="Instrument name"
-
-                android:textSize="20dp"
                 app:layout_constraintBottom_toTopOf="@+id/instrPropsTextView"
-                app:layout_constraintEnd_toStartOf="@+id/addInstrumentToCartButton"
+                app:layout_constraintEnd_toStartOf="@+id/instrumentQuantityTextView"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
@@ -64,31 +62,22 @@
 
                 android:hint="Instrument properties"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/addInstrumentToCartButton"
+                app:layout_constraintEnd_toStartOf="@+id/instrumentQuantityTextView"
                 app:layout_constraintStart_toStartOf="parent" />
 
-            <ImageView
-                android:id="@+id/deleteInstrumentButton"
-                android:layout_width="0dp"
+
+            <TextView
+                android:id="@+id/instrumentQuantityTextView"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="10dp"
-                android:gravity="center_vertical|center_horizontal"
-                android:src="@drawable/baseline_delete_24"
+                android:layout_margin="20dp"
+                android:hint="num"
+                android:textAlignment="center"
+                android:textSize="20dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <ImageView
-                android:id="@+id/addInstrumentToCartButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_margin="20dp"
-                android:layout_marginEnd="20dp"
-                android:gravity="center_vertical|center_horizontal"
-                android:src="@drawable/baseline_add_shopping_cart_24"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/deleteInstrumentButton"
-                app:layout_constraintTop_toTopOf="parent" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.cardview.widget.CardView>

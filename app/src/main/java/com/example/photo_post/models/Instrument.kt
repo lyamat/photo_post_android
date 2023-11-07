@@ -1,7 +1,8 @@
 package com.example.photo_post.models
 
 data class Instrument(
-    val instrumentName: String,
-    val instrumentQrCode: String,
-    val instrumentProperties: List<String>
+    val instrId: Int,
+    val instrName: String,
+    val instrQr: String,
+    val instrProps: String
 )

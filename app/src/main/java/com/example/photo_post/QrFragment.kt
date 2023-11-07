@@ -4,35 +4,25 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.text.Editable
 import android.text.TextUtils
 import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.webkit.URLUtil
-import android.widget.Button
-import android.widget.EditText
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.photo_post.image_work.convertImageToBase64
-import com.example.photo_post.image_work.getRotatedImageWithExif
 import com.example.photo_post.models.Cart
 import com.example.photo_post.models.CartItem
 import com.example.photo_post.models.Instrument
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.FormBody
@@ -49,11 +39,16 @@ private val REQUEST_CODE_SCANNER = 2001
 private val TAG = "QRFragment"
 
 class SharedViewModel : ViewModel() {
-    val cart: Cart = Cart()
+    var currentCart: Cart = Cart(1,"0909","Current cart") // generate random Cart id, name+cur_time
+    var cartListFromServer: ArrayList<Cart> = ArrayList()
     val instruments: MutableList<Instrument> = mutableListOf()
-    fun addToCart(instrument: Instrument, quantity: Int) {
+
+    val cartListFromServerLiveData = MutableLiveData<List<Cart>>()
+
+
+    fun addToCart(instrument: Instrument, quantity: Double) {
         val cartItem = CartItem(instrument, quantity)
-        cart.cartItems.add(cartItem)
+        currentCart.cartItems.add(cartItem)
     }
 }
 
@@ -101,37 +96,39 @@ class QrFragment : Fragment() {
                     if (qrInfoJson != null && isJSONValid(qrInfoJson)) {
                         if (!TextUtils.isEmpty(qrInfoJson)) {
                             val jsonObject = JSONObject(qrInfoJson)
-                            if (jsonObject.has("qr_code") && jsonObject.has("qr_instrument") && jsonObject.has(
-                                    "qr_instrument_properties"
+                            if (jsonObject.has("instr_id") && jsonObject.has("instr_qr") && jsonObject.has("instr_name") && jsonObject.has(
+                                    "instr_props"
                                 )
                             ) {
                                 val jsonObject = JSONObject(qrInfoJson)
-                                val instrumentQrCode = jsonObject.getString("qr_code")
-                                val instrumentName = jsonObject.getString("qr_instrument")
-                                val instrumentProperties =
-                                    jsonObject.getString("qr_instrument_properties").split(",")
+                                val instrId = jsonObject.getString("instr_id").toInt()
+                                val instrQr = jsonObject.getString("instr_qr")
+                                val instrName = jsonObject.getString("instr_name")
+                                val instrProps =
+                                    jsonObject.getString("instr_props")
                                 val instrument =
                                     Instrument(
-                                        instrumentName,
-                                        instrumentQrCode,
-                                        instrumentProperties
+                                        instrId,
+                                        instrName,
+                                        instrQr,
+                                        instrProps
                                     )
                                 val existingInstrument =
-                                    viewModel.instruments.find { it.instrumentQrCode == instrumentQrCode }
+                                    viewModel.instruments.find { it.instrQr == instrQr }
 
                                 if (existingInstrument != null) {
                                     val builder = AlertDialog.Builder(requireContext())
-                                    builder.setTitle("Инструмент с таким QR-кодом уже существует")
-                                    builder.setMessage("Вы хотите заменить его?")
+                                    builder.setTitle("A tool with such a QR code already exists")
+                                    builder.setMessage("Do you want to replace it??")
 
-                                    builder.setPositiveButton("Да") { dialog, _ ->
+                                    builder.setPositiveButton("Yes") { dialog, _ ->
                                         val index =
                                             viewModel.instruments.indexOf(existingInstrument)
                                         viewModel.instruments[index] = instrument
                                         adapter.notifyItemChanged(index)
                                         dialog.dismiss()
                                     }
-                                    builder.setNegativeButton("Нет") { dialog, _ -> dialog.cancel() }
+                                    builder.setNegativeButton("No") { dialog, _ -> dialog.cancel() }
 
                                     builder.show()
                                 } else {
@@ -141,7 +138,7 @@ class QrFragment : Fragment() {
                                 requireActivity().runOnUiThread {
                                     Toast.makeText(
                                         requireActivity(),
-                                        "Response must contain:\nqr_code, qr_instrument, qr_instrument_properties",
+                                        "Response (json) must contain:\ninstr_id, instr_qr, instr_name, instr_props",
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -181,7 +178,7 @@ class QrFragment : Fragment() {
     }
 
 
-    private fun getQrInfo(qrCode: String?, callback: (String?, String) -> Unit) {
+    private fun getQrInfo(instr_qr: String?, callback: (String?, String) -> Unit) {
         val activity = requireActivity()
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(activity)
         val server_address_post = sharedPrefs.getString("server_address_post", "no_server_address")
@@ -195,9 +192,9 @@ class QrFragment : Fragment() {
             val client = OkHttpClient()
 
             val requestBody: RequestBody = FormBody.Builder()
-                .add("request_command", "get_qr_info")
+                .add("request_command", "get_instr_by_qr")
                 .add("password", change_password!!)
-                .add("qr_code", qrCode!!)
+                .add("instr_qr", instr_qr!!)
                 .build()
 
             val request: Request = Request.Builder()
