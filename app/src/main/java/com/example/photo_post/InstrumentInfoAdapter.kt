@@ -1,17 +1,12 @@
 package com.example.photo_post
 
-import android.text.InputFilter
-import android.text.InputType
+
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
-import android.widget.ImageView
 import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import com.example.photo_post.models.CartItem
-import com.example.photo_post.models.Instrument
 
 class InstrumentInfoAdapter(private val cartItems: List<CartItem>) :
     RecyclerView.Adapter<InstrumentInfoAdapter.InstrumentViewHolder>() {

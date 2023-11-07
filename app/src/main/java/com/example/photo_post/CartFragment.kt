@@ -5,15 +5,11 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.photo_post.models.Cart
-import com.example.photo_post.models.CartItem
-import com.example.photo_post.models.Instrument
 import com.example.photo_post.server.NetworkHelper
 
 class CartFragment : Fragment() {

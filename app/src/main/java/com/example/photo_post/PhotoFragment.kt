@@ -56,7 +56,6 @@ import org.json.JSONException
 
 private val TAG = "PhotoFragment"
 
-private val CAMERA_PERMISSION_REQUEST_CODE = 1001
 private val REQUEST_IMAGE_CAPTURE = 1
 
 private var currentPhotoPath: String? = null

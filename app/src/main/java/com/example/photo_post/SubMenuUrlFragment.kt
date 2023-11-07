@@ -3,7 +3,6 @@ package com.example.photo_post
 import android.os.Bundle
 import android.widget.Toast
 import androidx.preference.EditTextPreference
-import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import java.net.MalformedURLException

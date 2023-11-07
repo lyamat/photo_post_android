@@ -86,7 +86,6 @@ class NetworkHelper(private val context: Context) {
         }
     }
 
-
     private fun parseProjectList(json: String?): List<Project> {
         val projectList = mutableListOf<Project>()
         json?.let {
@@ -94,7 +93,7 @@ class NetworkHelper(private val context: Context) {
                 val jsonArray = JSONArray(it)
                 for (i in 0 until jsonArray.length()) {
                     val jsonObject = jsonArray.getJSONObject(i)
-                    val projectId = jsonObject.getInt("id")
+                    val projectId = jsonObject.getLong("id")
                     val projectName = jsonObject.getString("name")
                     projectList.add(Project(projectId, projectName))
                 }
@@ -132,12 +131,8 @@ class NetworkHelper(private val context: Context) {
         }
     }
 
-
-
     fun uploadCart(viewModel: SharedViewModel, callback: (Boolean, String) -> Unit) {
-
-        val connectivityManager =
-            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkInfo = connectivityManager.activeNetworkInfo
         val isConnected =
             networkInfo != null && networkInfo.isConnected && networkInfo.type == ConnectivityManager.TYPE_WIFI
@@ -152,11 +147,10 @@ class NetworkHelper(private val context: Context) {
                     val gson = GsonBuilder()
                         .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
                         .create()
+                    viewModel.currentCart.cartUserPass = change_password.toString()
                     val cartJson = gson.toJson(viewModel.currentCart)
 
-                    if (TextUtils.isEmpty(server_address_post)) {
-                        callback(false, "Empty server address")
-                    } else {
+                    if (!TextUtils.isEmpty(server_address_post)) {
                         val client = OkHttpClient()
 
                         val requestBody: RequestBody = FormBody.Builder()
@@ -174,7 +168,8 @@ class NetworkHelper(private val context: Context) {
                             override fun onResponse(call: Call, response: Response) {
                                 if (response.isSuccessful) {
                                     callback(true, "Successfully sent to the server.")
-                                } else {
+                                }
+                                else {
                                     val logMsg = "Response unsuccessful, uploading cart"
                                     Log.e("onResponse", "$logMsg: ${response.message}")
                                     callback(false, "$logMsg: ${response.message}")
@@ -186,6 +181,10 @@ class NetworkHelper(private val context: Context) {
                                 callback(false, e.message ?: "")
                             }
                         })
+
+                    }
+                    else {
+                        callback(false, "Empty server address")
                     }
                 }
             }

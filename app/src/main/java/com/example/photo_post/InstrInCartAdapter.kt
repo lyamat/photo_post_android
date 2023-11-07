@@ -16,7 +16,9 @@ import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import com.example.photo_post.models.Cart
 
-class InstrInCartAdapter(private val cart: Cart, private val viewModel: SharedViewModel) : RecyclerView.Adapter<InstrInCartAdapter.InstrInCartViewHolder>() {
+class InstrInCartAdapter(private val cart: Cart, private val viewModel: SharedViewModel,
+                         private val cartViewHolder: CartAdapter.CartAdapterViewHolder) :
+                            RecyclerView.Adapter<InstrInCartAdapter.InstrInCartViewHolder>() {
 
     class InstrInCartViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val instrNameTextView = itemView.findViewById<TextView>(R.id.instrNameTextView)
@@ -45,6 +47,10 @@ class InstrInCartAdapter(private val cart: Cart, private val viewModel: SharedVi
 
             builder.setPositiveButton("OK") { dialog, _ ->
                 cart.cartItems.removeAt(position)
+                if (cart.cartItems.isEmpty()) {
+                    cartViewHolder.sendCartButton.visibility = View.INVISIBLE
+                    notifyDataSetChanged()
+                }
                 notifyItemRemoved(position)
                 notifyItemRangeChanged(position, cart.cartItems.size)
                 dialog.dismiss()
@@ -52,6 +58,8 @@ class InstrInCartAdapter(private val cart: Cart, private val viewModel: SharedVi
             builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
 
             builder.show()
+
+
         }
 
         holder.instrumentQuantityTextView.setOnClickListener {

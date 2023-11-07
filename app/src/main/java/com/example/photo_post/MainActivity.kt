@@ -1,58 +1,20 @@
 package com.example.photo_post
 
-import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.ConnectivityManager
-import android.os.Build
 import android.os.Bundle
-import android.os.Environment
-import android.provider.MediaStore
-import android.text.Editable
-import android.text.TextUtils
-import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
-import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ImageView
-import android.widget.Spinner
-import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.preference.PreferenceManager
 import com.example.photo_post.databinding.ActivityMainBinding
-import com.example.photo_post.image_work.convertImageToBase64
-import com.example.photo_post.image_work.getRotatedImageWithExif
-import com.example.photo_post.models.Project
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.FormBody
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.Response
-import org.json.JSONArray
-import org.json.JSONException
-import java.io.BufferedReader
-import java.io.File
-import java.io.FileReader
-import java.io.IOException
-import java.text.SimpleDateFormat
 import java.util.Date
-import android.webkit.URLUtil
-import android.net.Uri
+import androidx.lifecycle.ViewModelProvider
+import com.example.photo_post.models.Cart
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import java.util.Locale
 
 
 class MainActivity : AppCompatActivity() {
@@ -67,6 +29,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val CAMERA_PERMISSION_REQUEST_CODE = 1
+
+    private lateinit var viewModel: SharedViewModel
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -110,6 +74,20 @@ class MainActivity : AppCompatActivity() {
         supportFragmentManager.beginTransaction()
             .replace(R.id.frameLayout, PhotoFragment())
             .commit()
+
+        viewModel = ViewModelProvider(this).get(SharedViewModel::class.java)
+
+        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val change_password = sharedPrefs.getString("change_password", "")
+
+        val currentDateTime = android.icu.text.SimpleDateFormat(
+            "yyyyMMddHHmmss",
+            Locale.getDefault()
+        ).format(Date())
+
+        val cartName = "Cart ${currentDateTime.takeLast(6)}"
+        viewModel.currentCart = Cart(currentDateTime.toLong(), change_password.toString(), cartName)
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

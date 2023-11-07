@@ -1,5 +1,6 @@
 package com.example.photo_post
 
+import android.app.Activity
 import android.content.Context
 import android.text.InputFilter
 import android.text.InputType
@@ -10,6 +11,7 @@ import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -54,14 +56,19 @@ class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<
             holder.childRecyclerView.adapter = adapter
         }
         else {
-            val adapter = InstrInCartAdapter(cart, viewModel)
+            val adapter = InstrInCartAdapter(cart, viewModel, holder)
             holder.childRecyclerView.adapter = adapter
+        }
+
+        if (viewModel.currentCart.cartItems.isEmpty())
+        {
+            holder.sendCartButton.visibility = View.INVISIBLE
         }
 
         holder.editCartButton.setOnClickListener {
             viewModel.currentCart = viewModel.cartListFromServer[position]
             viewModel.cartListFromServer.clear()
-            val adapter = InstrInCartAdapter(viewModel.currentCart, viewModel)
+            val adapter = InstrInCartAdapter(cart, viewModel, holder)
             holder.childRecyclerView.adapter = adapter
             notifyDataSetChanged()
         }
@@ -83,7 +90,7 @@ class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<
                 builder.setPositiveButton("OK") { dialog, _ ->
                     if (input.text.isNotEmpty()) {
                         viewModel.currentCart.cartName = input.text.toString()
-                        val adapter = InstrInCartAdapter(viewModel.currentCart, viewModel)
+                        val adapter = InstrInCartAdapter(viewModel.currentCart, viewModel, holder)
                         holder.childRecyclerView.adapter = adapter
                         notifyDataSetChanged()
                     }
@@ -106,17 +113,14 @@ class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<
 
         holder.sendCartButton.setOnClickListener {
             NetworkHelper(it.context).uploadCart(viewModel) { isUploaded, message ->
-                if (isUploaded) {
-
-                }
-                else {
-
+                (it.context as Activity).runOnUiThread {
+                    Toast.makeText(holder.itemView.context, message, Toast.LENGTH_SHORT).show()
                 }
             }
         }
 
-
-
     }
+
+
 
 }
