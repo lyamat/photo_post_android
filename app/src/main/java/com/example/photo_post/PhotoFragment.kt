@@ -301,7 +301,7 @@ class PhotoFragment : Fragment() {
                                         val client = OkHttpClient()
 
                                         val requestBody: RequestBody = FormBody.Builder()
-                                            .add("request_command", "upload")
+                                            .add("request_command", "upload_image")
                                             .add("password", change_password!!)
                                             .add("imageBase64", imageBase64)
                                             .add("project_name", selectedProjectName)

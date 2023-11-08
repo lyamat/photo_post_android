@@ -7,19 +7,20 @@
     android:layout_height="match_parent"
     tools:context=".CartFragment">
 
-    <TextView
+    <Button
         android:id="@+id/getAllCartsButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="20dp"
-        android:background="@drawable/rounded_background"
+        android:backgroundTint="#4875F8"
         android:text="Get your carts"
         android:textAlignment="center"
-        android:textColor="@android:color/white"
+
         android:textSize="20dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+
         app:layout_constraintTop_toBottomOf="@id/instrInCartRecyclerView" />
 
     <androidx.recyclerview.widget.RecyclerView

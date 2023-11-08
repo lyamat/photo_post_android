@@ -25,6 +25,7 @@ import org.json.JSONException
 import java.io.IOException
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import java.util.concurrent.TimeUnit
 
 class NetworkHelper(private val context: Context) {
 
@@ -112,7 +113,12 @@ class NetworkHelper(private val context: Context) {
         if (TextUtils.isEmpty(server_address)) {
                 callback(false, "Settings. Address is empty")
         } else {
-            val client = OkHttpClient()
+            val client = OkHttpClient.Builder()
+                .connectTimeout(5, TimeUnit.SECONDS) // Устанавливаем таймаут подключения
+                .writeTimeout(5, TimeUnit.SECONDS) // Устанавливаем таймаут записи
+                .readTimeout(5, TimeUnit.SECONDS) // Устанавливаем таймаут чтения
+                .build()
+
             val request: Request = Request.Builder()
                 .url("$server_address")
                 .build()
@@ -144,53 +150,63 @@ class NetworkHelper(private val context: Context) {
                     val server_address_post = sharedPrefs.getString("server_address_post", "")
                     val change_password = sharedPrefs.getString("change_password", "")
 
-                    val gson = GsonBuilder()
-                        .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
-                        .create()
-                    viewModel.currentCart.cartUserPass = change_password.toString()
-                    val cartJson = gson.toJson(viewModel.currentCart)
-
                     if (!TextUtils.isEmpty(server_address_post)) {
-                        val client = OkHttpClient()
+                        if (!TextUtils.isEmpty(change_password)) {
+                            val gson = GsonBuilder()
+                                .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+                                .create()
+                            viewModel.currentCart.cartUserPass = change_password.toString()
+                            val cartJson = gson.toJson(viewModel.currentCart)
 
-                        val requestBody: RequestBody = FormBody.Builder()
-                            .add("request_command", "upload_cart")
-                            .add("password", change_password!!)
-                            .add("cart", cartJson)
-                            .build()
+                            Log.d("NetworkHelper", cartJson)
 
-                        val request: Request = Request.Builder()
-                            .url("$server_address_post")
-                            .post(requestBody)
-                            .build()
 
-                        client.newCall(request).enqueue(object : Callback {
-                            override fun onResponse(call: Call, response: Response) {
-                                if (response.isSuccessful) {
-                                    callback(true, "Successfully sent to the server.")
+                            val client = OkHttpClient()
+
+                            val requestBody: RequestBody = FormBody.Builder()
+                                .add("request_command", "upload_cart")
+                                .add("password", change_password!!)
+                                .add("cart", cartJson)
+                                .build()
+
+                            val request: Request = Request.Builder()
+                                .url("$server_address_post")
+                                .post(requestBody)
+                                .build()
+
+                            client.newCall(request).enqueue(object : Callback {
+                                override fun onResponse(call: Call, response: Response) {
+                                    if (response.isSuccessful) {
+                                        callback(true, "Successfully sent to the server.")
+                                    } else {
+                                        val logMsg = "Response unsuccessful, uploading cart"
+                                        Log.e("onResponse", "$logMsg: ${response.message}")
+                                        callback(false, "$logMsg: ${response.message}")
+                                    }
                                 }
-                                else {
-                                    val logMsg = "Response unsuccessful, uploading cart"
-                                    Log.e("onResponse", "$logMsg: ${response.message}")
-                                    callback(false, "$logMsg: ${response.message}")
+
+                                override fun onFailure(call: Call, e: IOException) {
+                                    Log.e("onFailure", "Failure, uploading cart: ${e.message}")
+                                    callback(false, e.message ?: "")
                                 }
-                            }
+                            })
 
-                            override fun onFailure(call: Call, e: IOException) {
-                                Log.e("onFailure", "Failure, uploading cart: ${e.message}")
-                                callback(false, e.message ?: "")
-                            }
-                        })
-
+                        }
+                        else {
+                            callback(false, "Empty password")
+                        }
                     }
                     else {
-                        callback(false, "Empty server address")
+
                     }
+                }
+                else {
+                    callback(false, errorMessage)
                 }
             }
         }
         else {
-            callback(false, "Server is unavailable")
+            callback(false, "Check Wi-fi connection")
         }
     }
 
@@ -209,65 +225,85 @@ class NetworkHelper(private val context: Context) {
                     val server_address_post = sharedPrefs.getString("server_address_post", "")
                     val change_password = sharedPrefs.getString("change_password", "")
 
-                    if (TextUtils.isEmpty(server_address_post)) {
-                        callback(ArrayList(), "Empty server address")
-                    } else {
-                        val client = OkHttpClient()
+                    if (!TextUtils.isEmpty(server_address_post)) {
+                        if(!TextUtils.isEmpty(change_password)) {
+                            val client = OkHttpClient()
 
-                        val requestBody: RequestBody = FormBody.Builder()
-                            .add("request_command", "get_user_carts")
-                            .add("password", change_password!!)
-                            .build()
+                            val requestBody: RequestBody = FormBody.Builder()
+                                .add("request_command", "get_user_carts")
+                                .add("password", change_password!!)
+                                .build()
 
-                        val request: Request = Request.Builder()
-                            .url("$server_address_post")
-                            .post(requestBody)
-                            .build()
+                            val request: Request = Request.Builder()
+                                .url("$server_address_post")
+                                .post(requestBody)
+                                .build()
 
-                        client.newCall(request).enqueue(object : Callback {
-                            override fun onResponse(call: Call, response: Response) {
-                                if (response.isSuccessful) {
-                                    val gson = Gson()
-                                    val listType = object : TypeToken<List<JsonModel>>() {}.type
-                                    val jsonModels: List<JsonModel> = gson.fromJson(response.body?.string(), listType)
+                            client.newCall(request).enqueue(object : Callback {
+                                override fun onResponse(call: Call, response: Response) {
+                                    if (response.isSuccessful) {
+                                        val gson = Gson()
+                                        val listType = TypeToken.getParameterized(
+                                            List::class.java,
+                                            JsonModel::class.java
+                                        ).type
+                                        val jsonModels: List<JsonModel> =
+                                            gson.fromJson(response.body?.string(), listType)
 
+                                        val carts: ArrayList<Cart> = arrayListOf()
+                                        jsonModels.forEach { jsonModel ->
+                                            var cart = carts.find { it.cartId == jsonModel.cart_id }
 
-                                    val carts: ArrayList<Cart> = arrayListOf()
-                                    jsonModels.forEach { jsonModel ->
-                                        var cart = carts.find { it.cartId == jsonModel.cart_id }
+                                            if (cart == null) {
+                                                cart = Cart(
+                                                    jsonModel.cart_id,
+                                                    jsonModel.cart_user_pass,
+                                                    jsonModel.cart_name
+                                                )
+                                                carts.add(cart)
+                                            }
 
-                                        if (cart == null) {
-                                            cart = Cart(jsonModel.cart_id, jsonModel.cart_user_pass, jsonModel.cart_name)
-                                            carts.add(cart)
+                                            // Создаем инструмент и элемент корзины
+                                            val instrument = Instrument(
+                                                jsonModel.instr_id,
+                                                jsonModel.instr_name,
+                                                jsonModel.instr_qr,
+                                                jsonModel.instr_props
+                                            )
+                                            val cartItem = CartItem(instrument, jsonModel.quantity)
+
+                                            // Добавляем элемент в корзину
+                                            cart.cartItems.add(cartItem)
                                         }
-
-                                        // Создаем инструмент и элемент корзины
-                                        val instrument = Instrument(jsonModel.instr_id, jsonModel.instr_name, jsonModel.instr_qr, jsonModel.instr_props)
-                                        val cartItem = CartItem(instrument, jsonModel.quantity)
-
-                                        // Добавляем элемент в корзину
-                                        cart.cartItems.add(cartItem)
+                                        callback(carts, "Success. Received ${carts.size} carts.")
+                                    } else {
+                                        val logMsg = "Response unsuccessful, getting carts"
+                                        Log.e("onResponse", "$logMsg: ${response.message}")
+                                        callback(ArrayList(), "$logMsg: ${response.message}")
                                     }
-                                    callback(carts, "Success. Received ${carts.size} carts.")
                                 }
-                                else {
-                                    val logMsg = "Response unsuccessful, getting carts"
-                                    Log.e("onResponse", "$logMsg: ${response.message}")
-                                    callback(ArrayList(), "$logMsg: ${response.message}")
-                                }
-                            }
 
-                            override fun onFailure(call: Call, e: IOException) {
-                                Log.e("onFailure", "Failure, carts: ${e.message}")
-                                callback(ArrayList(), e.message ?: "")
-                            }
-                        })
+                                override fun onFailure(call: Call, e: IOException) {
+                                    Log.e("onFailure", "Failure, carts: ${e.message}")
+                                    callback(ArrayList(), e.message ?: "")
+                                }
+                            })
+                        }
+                        else {
+                            callback(ArrayList(), "Empty password")
+                        }
                     }
+                    else {
+                        callback(ArrayList(), "Empty server address")
+                    }
+                }
+                else {
+                    callback(ArrayList(), errorMessage)
                 }
             }
         }
         else {
-            callback(ArrayList(), "Server is unavailable")
+            callback(ArrayList(), "Check Wi-fi connection")
         }
     }
 }

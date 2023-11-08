@@ -33,6 +33,7 @@ import okhttp3.Response
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 private val REQUEST_CODE_SCANNER = 2001
 
@@ -75,7 +76,7 @@ class QrFragment : Fragment() {
         adapter = InstrumentAdapter(viewModel.instruments, viewModel)
         instrumentRecyclerView.adapter = adapter
 
-        view.findViewById<ImageView>(R.id.button_qr).setOnClickListener {
+        view.findViewById<ImageView>(R.id.scanQrButton).setOnClickListener {
             val intent = Intent(requireContext(), ScannerActivity::class.java)
             startActivityForResult(intent, REQUEST_CODE_SCANNER)
         }
@@ -194,49 +195,64 @@ class QrFragment : Fragment() {
     private fun getQrInfo(instr_qr: String?, callback: (String?, String) -> Unit) {
         val activity = requireActivity()
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(activity)
-        val server_address_post = sharedPrefs.getString("server_address_post", "no_server_address")
+        val server_address_post = sharedPrefs.getString("server_address_post", "")
 
         val connectivityManager = activity.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkInfo = connectivityManager.activeNetworkInfo
         val isConnected = networkInfo != null && networkInfo.isConnected && networkInfo.type == ConnectivityManager.TYPE_WIFI
 
         if (isConnected) {
-            val change_password = sharedPrefs.getString("change_password", "")
-            val client = OkHttpClient()
+            if (!TextUtils.isEmpty(server_address_post)) {
+                val change_password = sharedPrefs.getString("change_password", "")
+                val client = OkHttpClient.Builder()
+                    .connectTimeout(5, TimeUnit.SECONDS) // Устанавливаем таймаут подключения
+                    .writeTimeout(5, TimeUnit.SECONDS) // Устанавливаем таймаут записи
+                    .readTimeout(5, TimeUnit.SECONDS) // Устанавливаем таймаут чтения
+                    .build()
 
-            val requestBody: RequestBody = FormBody.Builder()
-                .add("request_command", "get_instr_by_qr")
-                .add("password", change_password!!)
-                .add("instr_qr", instr_qr!!)
-                .build()
+                val requestBody: RequestBody = FormBody.Builder()
+                    .add("request_command", "get_instr_by_qr")
+                    .add("password", change_password!!)
+                    .add("instr_qr", instr_qr!!)
+                    .build()
 
-            val request: Request = Request.Builder()
-                .url("$server_address_post") // http://192.168.100.5/myproject/api.php
-                .post(requestBody)
-                .build()
+                val request: Request = Request.Builder()
+                    .url("$server_address_post") // http://192.168.100.5/myproject/api.php
+                    .post(requestBody)
+                    .build()
 
 
-            client.newCall(request).enqueue(object : Callback {
-                override fun onResponse(call: Call, response: Response) {
-                    if (response.isSuccessful) {
-                        activity.runOnUiThread {
-                            val responseBody = response.body?.string()
-                            if (responseBody != null) {
-                                callback(responseBody, "Response is success. Get ${responseBody.take(8)}... json")
+                client.newCall(request).enqueue(object : Callback {
+                    override fun onResponse(call: Call, response: Response) {
+                        if (response.isSuccessful) {
+                            activity.runOnUiThread {
+                                val responseBody = response.body?.string()
+                                if (responseBody != null) {
+                                    callback(
+                                        responseBody,
+                                        "Response is success. Get ${responseBody.take(8)}... json"
+                                    )
+                                }
                             }
+                        } else {
+                            val logMsg = "Response from server unsuccessful"
+                            Log.e(TAG, "$logMsg: ${response.message}")
+                            callback("", "$logMsg: ${response.message}")
                         }
-                    } else {
-                        val logMsg = "Response from server unsuccessful"
-                        Log.e(TAG, "$logMsg: ${response.message}")
-                        callback("", "$logMsg: ${response.message}")
                     }
-                }
 
-                override fun onFailure(call: Call, e: IOException) {
-                    Log.e(TAG, "Failure on request: ${e.message}")
-                    callback("", e.message ?: "")
-                }
-            })
+                    override fun onFailure(call: Call, e: IOException) {
+                        Log.e(TAG, "Failure on request: ${e.message}")
+                        callback("", e.message ?: "")
+                    }
+                })
+            }
+            else {
+                callback("", "Empty server address")
+            }
+        }
+        else {
+            callback("", "Check Wi-fi connection")
         }
     }
 

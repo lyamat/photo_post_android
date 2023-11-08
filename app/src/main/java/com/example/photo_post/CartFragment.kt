@@ -5,7 +5,9 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -17,7 +19,7 @@ class CartFragment : Fragment() {
     private lateinit var instrInCartRecyclerView: RecyclerView
     private lateinit var viewModel: SharedViewModel
     private lateinit var instrInCartAdapter: CartAdapter
-    private lateinit var getAllCartsButton: TextView
+    private lateinit var getAllCartsButton: Button
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,6 +42,7 @@ class CartFragment : Fragment() {
         getAllCartsButton = view.findViewById(R.id.getAllCartsButton)
 
         getAllCartsButton.setOnClickListener {
+            getAllCartsButton.isEnabled = false
             NetworkHelper(it.context).getUserCarts() { carts, message ->
                 activity?.runOnUiThread {
                     if (carts.isNotEmpty()) {
@@ -49,9 +52,17 @@ class CartFragment : Fragment() {
 
                         viewModel.cartListFromServerLiveData.value = viewModel.cartListFromServer
                     } else {
-                        // Handle the case where carts is empty
+                        requireActivity().runOnUiThread {
+                            Toast.makeText(
+                                requireActivity(),
+                                message,
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
+                    getAllCartsButton.isEnabled = true
                 }
+
             }
         }
 

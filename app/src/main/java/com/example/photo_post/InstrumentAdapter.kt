@@ -57,7 +57,7 @@ class InstrumentAdapter(private val instruments: MutableList<Instrument>,
 
             val input = EditText(it.context)
             input.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-            input.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(8))
+            input.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(5))
 
             input.setText("1.0")
             input.requestFocus()
@@ -68,7 +68,7 @@ class InstrumentAdapter(private val instruments: MutableList<Instrument>,
             builder.setPositiveButton("OK") { dialog, _ ->
                 if (input.text.isNotEmpty()) {
                     val quantity = input.text.toString().toDouble()
-                    if (quantity in 0.000001..9.9999999E7) {
+                    if (quantity in 0.001..999.0) {
                         val existingItem =
                             viewModel.currentCart.cartItems.find { it.instrument == instrument }
                         if (existingItem != null) {

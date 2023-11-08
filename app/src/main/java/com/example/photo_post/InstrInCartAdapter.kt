@@ -68,7 +68,7 @@ class InstrInCartAdapter(private val cart: Cart, private val viewModel: SharedVi
 
             val input = EditText(it.context)
             input.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-            input.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(8))
+            input.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(5))
 
             input.setText(holder.instrumentQuantityTextView.text.toString())
             input.requestFocus()
@@ -78,7 +78,7 @@ class InstrInCartAdapter(private val cart: Cart, private val viewModel: SharedVi
             builder.setPositiveButton("OK") { dialog, _ ->
                 if (input.text.isNotEmpty()) {
                     val quantity = input.text.toString().toDouble()
-                    if (quantity in 0.000001..9.9999999E7) {
+                    if (quantity in 0.001..999.0) {
                         val existingItem = cart.cartItems.find { it.instrument == instrument }
                         if (existingItem != null) {
                             existingItem.quantity = quantity

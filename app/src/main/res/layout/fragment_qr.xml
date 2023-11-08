@@ -8,7 +8,7 @@
     tools:context=".QrFragment">
 
     <ImageView
-        android:id="@+id/button_qr"
+        android:id="@+id/scanQrButton"
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:layout_margin="20dp"
@@ -23,7 +23,7 @@
         android:id="@+id/instrumentRecyclerView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@+id/button_qr"
+        app:layout_constraintBottom_toTopOf="@+id/scanQrButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />

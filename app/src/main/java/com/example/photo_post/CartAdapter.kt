@@ -14,10 +14,13 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.photo_post.models.Cart
 import com.example.photo_post.server.NetworkHelper
+import java.util.Date
+import java.util.Locale
 
 class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<CartAdapter.CartAdapterViewHolder>() {
     class CartAdapterViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -114,6 +117,21 @@ class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<
         holder.sendCartButton.setOnClickListener {
             NetworkHelper(it.context).uploadCart(viewModel) { isUploaded, message ->
                 (it.context as Activity).runOnUiThread {
+                    if (isUploaded) {
+                        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(it.context)
+                        val change_password = sharedPrefs.getString("change_password", "")
+
+                        val currentDateTime = android.icu.text.SimpleDateFormat(
+                            "yyyyMMddHHmmss",
+                            Locale.getDefault()
+                        ).format(Date())
+
+                        val cartName = "Cart ${currentDateTime.takeLast(6)}"
+                        viewModel.currentCart = Cart(currentDateTime.toLong(), change_password.toString(), cartName)
+                        val adapter = InstrInCartAdapter(viewModel.currentCart, viewModel, holder)
+                        holder.childRecyclerView.adapter = adapter
+                        notifyDataSetChanged()
+                    }
                     Toast.makeText(holder.itemView.context, message, Toast.LENGTH_SHORT).show()
                 }
             }
