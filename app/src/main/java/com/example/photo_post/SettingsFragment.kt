@@ -6,6 +6,7 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import com.example.photo_post.server.NetworkHelper
+import com.google.gson.Gson
 
 
 open class SettingsFragment : PreferenceFragmentCompat() {
@@ -34,10 +35,11 @@ open class SettingsFragment : PreferenceFragmentCompat() {
             NetworkHelper(requireContext()).checkServerAvailability() { isServerAvailable, message ->
                 if (isServerAvailable) {
                     NetworkHelper(requireContext()).updateProjectList { projectList, message ->
-                        if (projectList.isNotEmpty()) {
-                            sharedPrefs.edit().putStringSet("projectNames", projectList.map { it.projectName }.toSet()).apply()
-//                            sharedPrefs.edit().putString("selectedProjectName", projectList[0].projectName).apply()
-//                            editor.putStringSet("projectListIds", projectList.map { it.projectId.toString() }.toSet()).apply()
+                    if (projectList.isNotEmpty()) {
+                        val gson = Gson()
+                        val jsonProjects = gson.toJson(projectList)
+                        sharedPrefs.edit().putString("projects", jsonProjects).apply()
+//                        sharedPrefs.edit().putStringSet("projectNames", projectList.map { it.projectName }.toSet()).apply()
 
                             requireActivity().runOnUiThread {
                                 Toast.makeText(
@@ -48,8 +50,7 @@ open class SettingsFragment : PreferenceFragmentCompat() {
                                 updatePreference?.isEnabled = true
                             }
                         } else {
-                            sharedPrefs.edit().putStringSet("projectNames", emptySet()).apply()
-//                            sharedPrefs.edit().putString("selectedProjectName", projectList[0].projectName).apply()
+                            sharedPrefs.edit().putString("projects", "").apply()
                             requireActivity().runOnUiThread {
                                 Toast.makeText(
                                     requireContext(),

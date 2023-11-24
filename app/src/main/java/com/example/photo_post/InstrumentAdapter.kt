@@ -1,8 +1,10 @@
 package com.example.photo_post
 
 import android.content.Context
+import android.text.Editable
 import android.text.InputFilter
 import android.text.InputType
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -24,6 +26,8 @@ class InstrumentAdapter(private val instruments: MutableList<Instrument>,
         val instrPropsTextView = itemView.findViewById<TextView>(R.id.instrPropsTextView)
         val deleteInstrumentButton = itemView.findViewById<ImageView>(R.id.deleteInstrumentButton)
         val addInstrumentToCartButton = itemView.findViewById<ImageView>(R.id.addInstrumentToCartButton)
+        val instrUnitsTextView = itemView.findViewById<TextView>(R.id.instrUnitsTextView)
+//        val instrAmountTextView = itemView.findViewById<TextView>(R.id.instrAmountTextView)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): InstrumentViewHolder {
@@ -35,6 +39,12 @@ class InstrumentAdapter(private val instruments: MutableList<Instrument>,
         val instrument = instruments[position]
         holder.instrNameTextView.text = instrument.instrName
         holder.instrPropsTextView.text = instrument.instrProps
+        holder.instrUnitsTextView.text = "${instrument.instrAmount}(${instrument.instrUnits})"
+//        holder.instrAmountTextView.text = "(${instrument.instrAmount})"
+
+        if (!instrument.isAddToCartEnabled) {
+            holder.addInstrumentToCartButton.visibility = View.GONE
+        }
 
         holder.deleteInstrumentButton.setOnClickListener {
             val builder = AlertDialog.Builder(it.context)
@@ -51,30 +61,70 @@ class InstrumentAdapter(private val instruments: MutableList<Instrument>,
             builder.show()
         }
 
-        holder.addInstrumentToCartButton.setOnClickListener {
+        holder.addInstrumentToCartButton.setOnClickListener { it ->
             val builder = AlertDialog.Builder(it.context)
-            builder.setTitle("Input quantity:")
+            builder.setTitle("Input amount: (${instrument.instrUnits})")
 
             val input = EditText(it.context)
             input.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
             input.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(5))
 
-            input.setText("1.0")
+            val existingItem =
+                viewModel.currentCart.cartItems.find { it.instrument == instrument }
+            if (existingItem != null) {
+                input.setText((instrument.instrAmount - existingItem.amount_in_cart).toString())
+            }
+            else {
+                input.setText(instrument.instrAmount.toString())
+            }
             input.requestFocus()
+
+            input.addTextChangedListener(object : TextWatcher {
+                override fun afterTextChanged(s: Editable) {
+                    val amount = s.toString().toDoubleOrNull()
+                    val existingItem =
+                        viewModel.currentCart.cartItems.find { it.instrument == instrument }
+                    if (amount != null) {
+                        if(amount > instrument.instrAmount){
+                        input.error = "The entered value cannot be greater than ${instrument.instrAmount}"
+                        }
+                        if (existingItem != null) {
+                            if (existingItem.amount_in_cart + amount > instrument.instrAmount) {
+                                input.error = "Cart already have ${existingItem.amount_in_cart}\n"+
+                                        "${existingItem.amount_in_cart} + ${amount} > ${instrument.instrAmount}"
+                            }
+                        }
+                    }
+
+                }
+
+                override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+                    // Не используется, но должен быть переопределен
+                }
+
+                override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
+                    // Не используется, но должен быть переопределен
+                }
+            })
+
 
             builder.setView(input)
 
-
             builder.setPositiveButton("OK") { dialog, _ ->
                 if (input.text.isNotEmpty()) {
-                    val quantity = input.text.toString().toDouble()
-                    if (quantity in 0.001..999.0) {
+                    val amount = input.text.toString().toDouble()
+                    if (amount in 0.001..instrument.instrAmount) {
                         val existingItem =
                             viewModel.currentCart.cartItems.find { it.instrument == instrument }
                         if (existingItem != null) {
-                            existingItem.quantity += quantity
+//                            val newAmount = instrument.instrAmount - amount
+//                            holder.instrAmountTextView.text = "(newAmount)"
+//                            instrument.instrAmount -= newAmount
+
+                            existingItem.amount_in_cart += amount
+
                         } else {
-                            viewModel.addToCart(instrument, quantity)
+                            viewModel.addToCart(instrument, amount)
                         }
                         notifyDataSetChanged()
                     }

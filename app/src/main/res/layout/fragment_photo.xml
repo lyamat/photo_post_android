@@ -54,9 +54,10 @@
         android:popupBackground="@color/white"
         android:spinnerDropDownItemStyle="@style/SpinnerDropDownStyle"
         android:spinnerMode="dialog"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toBottomOf="@+id/button_camera"
         app:layout_constraintEnd_toStartOf="@+id/button_camera"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/button_camera" />
 
     <HorizontalScrollView
         android:id="@+id/horizontalScrollView3"

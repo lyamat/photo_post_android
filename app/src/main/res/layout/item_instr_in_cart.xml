@@ -29,10 +29,10 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
 
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
                 android:layout_marginStart="10dp"
+                android:layout_marginTop="10dp"
                 android:layout_marginEnd="30dp"
+                android:layout_marginBottom="10dp"
 
                 android:hint="Instrument name"
 
@@ -48,47 +48,54 @@
                 app:layout_constraintStart_toStartOf="@id/instrNameTextView"
                 app:layout_constraintTop_toBottomOf="@id/instrNameTextView"
                 app:layout_constraintBottom_toTopOf="@id/instrPropsTextView"
-                style="@style/Divider"></View>
+                style="@style/Divider">
+
+            </View>
 
             <TextView
                 android:id="@+id/instrPropsTextView"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
 
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
                 android:layout_marginStart="10dp"
+                android:layout_marginBottom="10dp"
                 android:layout_marginEnd="30dp"
 
                 android:hint="Instrument properties"
                 android:textSize="20sp"
 
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/instrumentQuantityTextView"
-                app:layout_constraintStart_toStartOf="parent" />
+                app:layout_constraintEnd_toStartOf="@+id/deleteInstrumentFromCartButton"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/instrNameTextView"/>
 
             <ImageView
                 android:id="@+id/deleteInstrumentFromCartButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_margin="20dp"
+
+                android:layout_marginEnd="10dp"
+
                 android:gravity="center_vertical|center_horizontal"
                 android:src="@drawable/baseline_delete_24"
-                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintBottom_toBottomOf="@+id/instrPropsTextView"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toTopOf="@+id/instrPropsTextView" />
 
 
             <TextView
                 android:id="@+id/instrumentQuantityTextView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="20dp"
+
+                android:layout_marginTop="10dp"
+                android:layout_marginEnd="10dp"
+
                 android:hint="num"
                 android:textAlignment="center"
                 android:textSize="20dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/deleteInstrumentFromCartButton"
+                app:layout_constraintBottom_toBottomOf="@+id/instrNameTextView"
+                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
 

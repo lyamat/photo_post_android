@@ -11,24 +11,40 @@
         android:id="@+id/getAllCartsButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="20dp"
+        android:layout_margin="10dp"
         android:backgroundTint="#4875F8"
-        android:text="Get your carts"
+        android:text="Get my boxes"
         android:textAlignment="center"
 
-        android:textSize="20dp"
+        android:textSize="18dp"
+        app:layout_constraintBottom_toBottomOf="@+id/cartFilterButton"
+        app:layout_constraintEnd_toStartOf="@+id/cartFilterButton"
+
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/cartFilterButton" />
+
+    <Button
+        android:id="@+id/cartFilterButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:backgroundTint="#4875F8"
+        android:text="Choose project"
+        android:textAlignment="center"
+
+        android:textSize="18dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-
-        app:layout_constraintTop_toBottomOf="@id/instrInCartRecyclerView" />
+        app:layout_constraintStart_toEndOf="@id/getAllCartsButton"
+        app:layout_constraintTop_toBottomOf="@+id/instrInCartRecyclerView" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/instrInCartRecyclerView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@+id/getAllCartsButton"
+        app:layout_constraintBottom_toTopOf="@+id/cartFilterButton"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 

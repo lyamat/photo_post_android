@@ -10,6 +10,8 @@ import com.example.photo_post.models.Cart
 import com.example.photo_post.models.CartItem
 import com.example.photo_post.models.Instrument
 import com.example.photo_post.models.JsonModel
+import com.example.photo_post.models.JsonModelGetCartByProcess
+import com.example.photo_post.models.Process
 import com.example.photo_post.models.Project
 import com.google.gson.FieldNamingPolicy
 import com.google.gson.GsonBuilder
@@ -105,6 +107,71 @@ class NetworkHelper(private val context: Context) {
         return projectList
     }
 
+    fun getProcessesByProject(projectName: String, callback: (List<Process>, String) -> Unit) {
+        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val server_address_post = sharedPrefs.getString("server_address_post", "")
+        val change_password = sharedPrefs.getString("change_password", "")
+
+        if (TextUtils.isEmpty(server_address_post)) {
+            callback(emptyList(), "Server url address is empty")
+        } else {
+            val client = OkHttpClient()
+
+            val requestBody: RequestBody = FormBody.Builder()
+                .add("request_command", "get_processes_by_project")
+                .add("password", change_password!!)
+                .add("project_name", projectName)
+                .build()
+
+            val request: Request = Request.Builder()
+                .url("$server_address_post")
+                .post(requestBody)
+                .build()
+
+            client.newCall(request).enqueue(object : Callback {
+                override fun onResponse(call: Call, response: Response) {
+                    if (response.isSuccessful) {
+                        val responseBody = response.body?.string()
+                        val processList = parseProcessList(responseBody)
+                        if (processList.isNotEmpty()) {
+                            callback(processList, "")
+                        }
+                        else{
+                            callback(emptyList(), "Response have empty process list")
+                        }
+                    } else {
+                        val logMsg = "Response unsuccessful, getting process list"
+                        Log.e("onResponse", "$logMsg: ${response.message}")
+                        callback(emptyList(), "$logMsg: ${response.message}")
+                    }
+                }
+
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.e("onFailure", "Failure, getting process list: ${e.message}")
+                    callback(emptyList(), e.message ?: "")
+                }
+            })
+        }
+    }
+
+    private fun parseProcessList(json: String?): List<Process> {
+        val processList = mutableListOf<Process>()
+        json?.let {
+            try {
+                val jsonArray = JSONArray(it)
+                for (i in 0 until jsonArray.length()) {
+                    val jsonObject = jsonArray.getJSONObject(i)
+                    val processId = jsonObject.getLong("process_id")
+                    val processName = jsonObject.getString("process_name")
+                    processList.add(Process(processId, processName))
+                }
+            } catch (e: JSONException) {
+                Log.e("parseProcessList", "Error parsing process list: ${e.message}")
+            }
+        }
+        return processList
+    }
+
     fun checkServerAvailability(callback: (Boolean, String) -> Unit) {
 
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
@@ -114,9 +181,9 @@ class NetworkHelper(private val context: Context) {
                 callback(false, "Settings. Address is empty")
         } else {
             val client = OkHttpClient.Builder()
-                .connectTimeout(5, TimeUnit.SECONDS) // Устанавливаем таймаут подключения
-                .writeTimeout(5, TimeUnit.SECONDS) // Устанавливаем таймаут записи
-                .readTimeout(5, TimeUnit.SECONDS) // Устанавливаем таймаут чтения
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .writeTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(5, TimeUnit.SECONDS)
                 .build()
 
             val request: Request = Request.Builder()
@@ -155,11 +222,7 @@ class NetworkHelper(private val context: Context) {
                             val gson = GsonBuilder()
                                 .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
                                 .create()
-                            viewModel.currentCart.cartUserPass = change_password.toString()
                             val cartJson = gson.toJson(viewModel.currentCart)
-
-                            Log.d("NetworkHelper", cartJson)
-
 
                             val client = OkHttpClient()
 
@@ -197,7 +260,7 @@ class NetworkHelper(private val context: Context) {
                         }
                     }
                     else {
-
+                        callback(false, "Empty server address")
                     }
                 }
                 else {
@@ -257,22 +320,22 @@ class NetworkHelper(private val context: Context) {
                                             if (cart == null) {
                                                 cart = Cart(
                                                     jsonModel.cart_id,
-                                                    jsonModel.cart_user_pass,
-                                                    jsonModel.cart_name
-                                                )
-                                                carts.add(cart)
+                                                    jsonModel.cart_name,
+                                                    jsonModel.cart_type,
+                                                    0)
+                                           carts.add(cart)
                                             }
 
-                                            // Создаем инструмент и элемент корзины
                                             val instrument = Instrument(
                                                 jsonModel.instr_id,
                                                 jsonModel.instr_name,
                                                 jsonModel.instr_qr,
-                                                jsonModel.instr_props
+                                                jsonModel.instr_props,
+                                                jsonModel.instr_amount,
+                                                jsonModel.instr_units
                                             )
-                                            val cartItem = CartItem(instrument, jsonModel.quantity)
+                                            val cartItem = CartItem(instrument, jsonModel.amount_in_cart)
 
-                                            // Добавляем элемент в корзину
                                             cart.cartItems.add(cartItem)
                                         }
                                         callback(carts, "Success. Received ${carts.size} carts.")
@@ -288,6 +351,210 @@ class NetworkHelper(private val context: Context) {
                                     callback(ArrayList(), e.message ?: "")
                                 }
                             })
+                        }
+                        else {
+                            callback(ArrayList(), "Empty password")
+                        }
+                    }
+                    else {
+                        callback(ArrayList(), "Empty server address")
+                    }
+                }
+                else {
+                    callback(ArrayList(), errorMessage)
+                }
+            }
+        }
+        else {
+            callback(ArrayList(), "Check Wi-fi connection")
+        }
+    }
+
+    fun getCartByProcess(processName: String, callback: (ArrayList<Cart>, String) -> Unit) {
+
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkInfo = connectivityManager.activeNetworkInfo
+        val isConnected =
+            networkInfo != null && networkInfo.isConnected && networkInfo.type == ConnectivityManager.TYPE_WIFI
+
+        if (isConnected) {
+            checkServerAvailability { isAvailable, errorMessage ->
+                if (isAvailable) {
+                    val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
+                    val server_address_post = sharedPrefs.getString("server_address_post", "")
+                    val change_password = sharedPrefs.getString("change_password", "")
+
+                    if (!TextUtils.isEmpty(server_address_post)) {
+                        if(!TextUtils.isEmpty(change_password)) {
+                            val client = OkHttpClient()
+
+                            val requestBody: RequestBody = FormBody.Builder()
+                                .add("request_command", "get_cart_by_process")
+                                .add("password", change_password!!)
+                                .add("process_name", processName)
+                                .build()
+
+                            val request: Request = Request.Builder()
+                                .url("$server_address_post")
+                                .post(requestBody)
+                                .build()
+
+                            client.newCall(request).enqueue(object : Callback {
+                                override fun onResponse(call: Call, response: Response) {
+                                    if (response.isSuccessful) {
+                                        val gson = Gson()
+                                        val listType = TypeToken.getParameterized(
+                                            List::class.java,
+                                            JsonModelGetCartByProcess::class.java
+                                        ).type
+                                        val jsonModels: List<JsonModelGetCartByProcess> =
+                                            gson.fromJson(response.body?.string(), listType)
+
+                                        val carts: ArrayList<Cart> = arrayListOf()
+                                        jsonModels.forEach { jsonModelGetCartByProcess ->
+                                            var cart = carts.find { it.cartId == jsonModelGetCartByProcess.cart_id }
+
+                                            if (cart == null) {
+                                                cart = Cart(
+                                                    jsonModelGetCartByProcess.cart_id,
+                                                    jsonModelGetCartByProcess.cart_name,
+                                                    jsonModelGetCartByProcess.cart_type,
+                                                    jsonModelGetCartByProcess.process_id)
+                                                carts.add(cart)
+                                            }
+
+                                            val instrument = Instrument(
+                                                jsonModelGetCartByProcess.instr_id,
+                                                jsonModelGetCartByProcess.instr_name,
+                                                jsonModelGetCartByProcess.instr_qr,
+                                                jsonModelGetCartByProcess.instr_props,
+                                                jsonModelGetCartByProcess.instr_amount,
+                                                jsonModelGetCartByProcess.instr_units
+                                            )
+                                            val cartItem = CartItem(instrument, 0.0)
+
+                                            cart.cartItems.add(cartItem)
+                                        }
+                                        if (carts.size > 0) {
+                                            carts.subList(1, carts.size).clear()
+                                            carts[0].cartId = 0
+                                        }
+
+                                        callback(carts, "Success. Received ${carts.size} carts.")
+                                    } else {
+                                        val logMsg = "Response unsuccessful, getting carts"
+                                        Log.e("onResponse", "$logMsg: ${response.message}")
+                                        callback(ArrayList(), "$logMsg: ${response.message}")
+                                    }
+                                }
+
+                                override fun onFailure(call: Call, e: IOException) {
+                                    Log.e("onFailure", "Failure, carts: ${e.message}")
+                                    callback(ArrayList(), e.message ?: "")
+                                }
+                            })
+                        }
+                        else {
+                            callback(ArrayList(), "Empty password")
+                        }
+                    }
+                    else {
+                        callback(ArrayList(), "Empty server address")
+                    }
+                }
+                else {
+                    callback(ArrayList(), errorMessage)
+                }
+            }
+        }
+        else {
+            callback(ArrayList(), "Check Wi-fi connection")
+        }
+    }
+
+    fun getPrevNextCart(prevOrNext: String, cartId: Long, callback: (ArrayList<Cart>, String) -> Unit) {
+
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkInfo = connectivityManager.activeNetworkInfo
+        val isConnected =
+            networkInfo != null && networkInfo.isConnected && networkInfo.type == ConnectivityManager.TYPE_WIFI
+
+        if (isConnected) {
+            checkServerAvailability { isAvailable, errorMessage ->
+                if (isAvailable) {
+                    val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
+                    val server_address_post = sharedPrefs.getString("server_address_post", "")
+                    val change_password = sharedPrefs.getString("change_password", "")
+
+                    if (!TextUtils.isEmpty(server_address_post)) {
+                        if(!TextUtils.isEmpty(change_password)) {
+                            val client = OkHttpClient()
+
+                            val requestBody: RequestBody = FormBody.Builder()
+                                .add("request_command", "get_prev_next_cart")
+                                .add("password", change_password!!)
+                                .add("prev_or_next", prevOrNext) //"prev" or "next"
+                                .add("cart_id", cartId.toString())
+                                .build()
+
+                            val request: Request = Request.Builder()
+                                .url("$server_address_post")
+                                .post(requestBody)
+                                .build()
+
+                            client.newCall(request).enqueue(object : Callback {
+                                override fun onResponse(call: Call, response: Response) {
+                                    if (response.isSuccessful) {
+                                        val gson = Gson()
+                                        val listType = TypeToken.getParameterized(
+                                            List::class.java,
+                                            JsonModel::class.java
+                                        ).type
+                                        val jsonModels: List<JsonModel> =
+                                            gson.fromJson(response.body?.string(), listType)
+
+                                        if (jsonModels.isNotEmpty()) {
+                                            val carts: ArrayList<Cart> = arrayListOf()
+                                            var cart = Cart(
+                                                jsonModels[0].cart_id,
+                                                jsonModels[0].cart_name,
+                                                jsonModels[0].cart_type,
+                                                jsonModels[0].process_id
+                                            )
+
+                                            jsonModels.forEach { jsonModel ->
+                                                val instrument = Instrument(
+                                                    jsonModel.instr_id,
+                                                    jsonModel.instr_name,
+                                                    jsonModel.instr_qr,
+                                                    jsonModel.instr_props,
+                                                    jsonModel.instr_amount,
+                                                    jsonModel.instr_units
+                                                )
+                                                val cartItem = CartItem(instrument, jsonModel.amount_in_cart)
+
+                                                cart.cartItems.add(cartItem)
+                                            }
+                                            carts.add(cart)
+                                            callback(carts, "Success. Received ${carts.size} boxes.")
+                                        } else {
+                                            callback(ArrayList(), "Response have no box")
+                                        }
+                                    } else {
+                                        val logMsg = "Response unsuccessful, getting boxes"
+                                        Log.e("onResponse", "$logMsg: ${response.message}")
+                                        callback(ArrayList(), "$logMsg: ${response.message}")
+                                    }
+                                }
+
+                                override fun onFailure(call: Call, e: IOException) {
+                                    Log.e("onFailure", "Failure, carts: ${e.message}")
+                                    callback(ArrayList(), e.message ?: "")
+                                }
+                            })
+
                         }
                         else {
                             callback(ArrayList(), "Empty password")

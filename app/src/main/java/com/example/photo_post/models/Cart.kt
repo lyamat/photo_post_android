@@ -1,9 +1,10 @@
 package com.example.photo_post.models
 
-class Cart (
-    val cartId: Long,
-    var cartUserPass: String,
+class Cart(
+    var cartId: Long,
     var cartName: String,
+    var cartType: Long,
+    val processId: Long,
     val cartItems: MutableList<CartItem> = mutableListOf(),
 )
 

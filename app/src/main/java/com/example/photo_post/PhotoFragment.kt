@@ -32,6 +32,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
@@ -40,6 +41,8 @@ import com.example.photo_post.image_work.convertImageToBase64
 import com.example.photo_post.image_work.getRotatedImageWithExif
 import com.example.photo_post.models.Project
 import com.example.photo_post.server.NetworkHelper
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,10 +54,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import org.json.JSONArray
-import org.json.JSONException
 
-private val TAG = "PhotoFragment"
+private const val TAG = "PhotoFragment"
 
 private val REQUEST_IMAGE_CAPTURE = 1
 
@@ -72,6 +73,7 @@ class PhotoFragment : Fragment() {
 
     private lateinit var projectAdapter: ArrayAdapter<String>
     private lateinit var viewModel: PhotoViewModel
+    private lateinit var sharedViewModel: SharedViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,23 +94,23 @@ class PhotoFragment : Fragment() {
         }
 
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
-        val savedProjectNames = sharedPrefs.getStringSet("projectNames", emptySet())?.toMutableList() ?: mutableListOf()
-//        val savedSelectedProjectName = sharedPrefs.getString("selectedProjectName", "")
+
+        val gson = Gson()
+        val jsonProjects = sharedPrefs.getString("projects", "")
+        val projects: List<Project> = if (jsonProjects?.isNotEmpty() == true) {
+            val listType = TypeToken.getParameterized(List::class.java, Project::class.java).type
+            gson.fromJson(jsonProjects, listType)
+        } else {
+            emptyList()
+        }
+
+
+        val projectNames = projects.map { it.projectName }
 
         val projectSpinner = view.findViewById<Spinner>(R.id.projectSpinner)
-        projectAdapter = ArrayAdapter<String>(requireContext(), android.R.layout.simple_spinner_item, savedProjectNames)
+        projectAdapter = ArrayAdapter<String>(requireContext(), android.R.layout.simple_spinner_item, projectNames)
         projectAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         projectSpinner.adapter = projectAdapter
-
-        projectSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                sharedPrefs.edit().putString("selectedProjectName", parent.selectedItem as String).apply()
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>) {
-                // Do nothing
-            }
-        }
 
         val commentEditText = view.findViewById<EditText>(R.id.commentEditText)
         commentEditText.setText(viewModel.commentText)
@@ -129,22 +131,50 @@ class PhotoFragment : Fragment() {
         viewModel.commentText = view?.findViewById<EditText>(R.id.commentEditText)?.text.toString()
     }
 
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        sharedViewModel = ViewModelProvider(requireActivity()).get(SharedViewModel::class.java)
+
+        sharedViewModel.message.observe(viewLifecycleOwner, Observer { message ->
+            if (message.isNotEmpty()) {
+                Toast.makeText(activity, message, Toast.LENGTH_SHORT).show()
+                sharedViewModel.message.postValue("")
+            }
+        })
+
+        sharedViewModel.isButtonEnabled.observe(viewLifecycleOwner, Observer { isEnabled ->
+            view?.findViewById<Button>(R.id.sendToServerButton)?.isEnabled = isEnabled
+        })
+    }
+
+
     override fun onResume() {
         super.onResume()
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
-        val projectNames = sharedPrefs.getStringSet("projectNames", emptySet()) ?: emptySet()
+
+        val gson = Gson()
+        val jsonProjects = sharedPrefs.getString("projects", "")
+        val projects: List<Project> = if (jsonProjects?.isNotEmpty() == true) {
+            val listType = TypeToken.getParameterized(List::class.java, Project::class.java).type
+            gson.fromJson(jsonProjects, listType)
+        } else {
+            emptyList()
+        }
+
+
+        val projectNames = projects.map { it.projectName }
 
         projectAdapter.clear()
         if(projectNames.isNotEmpty()) {
             projectAdapter.addAll(projectNames)
-            sharedPrefs.edit().putString("selectedProjectName", projectAdapter.getItem(0)).apply()
         }
         else {
             projectAdapter.add("no projects available")
         }
         projectAdapter.notifyDataSetChanged()
-
     }
+
     private fun dispatchTakePictureIntent() {
         val activity = requireActivity()
         Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
@@ -206,66 +236,55 @@ class PhotoFragment : Fragment() {
 
         val server_address_post = sharedPrefs.getString("server_address_post", "")
         val change_password = sharedPrefs.getString("change_password", "")
-        val projectNames = sharedPrefs.getStringSet("projectNames", emptySet()) ?: emptySet()
-        val selectedProjectName = sharedPrefs.getString("selectedProjectName", "") ?: ""
+
+        val projectSpinner = view?.findViewById<Spinner>(R.id.projectSpinner)
+
+        val gson = Gson()
+        val jsonProjects = sharedPrefs.getString("projects", "")
+        val projects: List<Project> = if (jsonProjects?.isNotEmpty() == true) {
+            val listType = TypeToken.getParameterized(List::class.java, Project::class.java).type
+            gson.fromJson(jsonProjects, listType)
+        } else {
+            emptyList()
+        }
+
+        val projectNames = projects.map { it.projectName }
+
+        val selectedProjectName = projectSpinner?.selectedItem.toString()
 
         val commentEditText = view?.findViewById<EditText>(R.id.commentEditText)
         val comment = commentEditText?.text.toString()
 
-
         if (TextUtils.isEmpty(change_password)) {
-            requireActivity().runOnUiThread {
-                Toast.makeText(
-                    requireActivity(),
-                    "Settings. Password is empty",
-                    Toast.LENGTH_SHORT
-                ).show()
-                view?.findViewById<Button>(R.id.sendToServerButton)?.isEnabled = true
-            }
+                toastAndLog("Settings. Password is empty")
+                sharedViewModel.setButtonEnabled(true)
+
         } else {
             if (TextUtils.isEmpty(server_address_post)) {
-                requireActivity().runOnUiThread {
-                    Toast.makeText(
-                        requireActivity(),
-                        "Settings. Server address is empty",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    view?.findViewById<Button>(R.id.sendToServerButton)?.isEnabled = true
-                }
+                toastAndLog("Settings. Server address is empty")
+                sharedViewModel.setButtonEnabled(true)
             } else {
                 if (projectNames.isEmpty()) {
-                    requireActivity().runOnUiThread {
-                        Toast.makeText(
-                            requireActivity(),
-                            "Empty project list",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        view?.findViewById<Button>(R.id.sendToServerButton)?.isEnabled = true
-                    }
+                    toastAndLog("Empty project list")
+                    sharedViewModel.setButtonEnabled(true)
                 } else {
                     if (imageBase64.isEmpty()) {
-                        requireActivity().runOnUiThread {
-                            Toast.makeText(
-                                requireActivity(),
-                                "No image to send",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            view?.findViewById<Button>(R.id.sendToServerButton)?.isEnabled = true
-                        }
+                        toastAndLog("No image to send")
+                        sharedViewModel.setButtonEnabled(true)
                     } else {
                         val builder = AlertDialog.Builder(requireActivity())
-                        builder.setTitle("Отправить на сервер?")
-                        builder.setMessage("Комментарий: $comment\nВыбранный проект: $selectedProjectName")
+                        builder.setTitle("Send to server?")
+                        builder.setMessage("Comment: $comment\nSelected project: $selectedProjectName")
                         builder.setPositiveButton("Да") { dialog, which ->
                             dialog.dismiss()
                             view?.findViewById<Button>(R.id.sendToServerButton)?.isEnabled = false
                             sendToServer()
                             Log.d(
                                 TAG,
-                                "Отправка на сервер: Фото, выбранный проект - $selectedProjectName, комментарий - $comment"
+                                "Send to server: Photo, selected project - $selectedProjectName, comment - $comment"
                             )
                         }
-                        builder.setNegativeButton("Отмена") { dialog, which ->
+                        builder.setNegativeButton("Cancel") { dialog, which ->
                             dialog.dismiss()
                         }
                         builder.show()
@@ -283,99 +302,93 @@ class PhotoFragment : Fragment() {
         val isConnected = networkInfo != null && networkInfo.isConnected && networkInfo.type == ConnectivityManager.TYPE_WIFI
 
         if (isConnected) {
-            val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(requireActivity())
-            val server_address_post = sharedPrefs.getString("server_address_post", "")
-            val change_password = sharedPrefs.getString("change_password", "")
-            val projectNames = sharedPrefs.getStringSet("projectNames", emptySet()) ?: emptySet()
-            val selectedProjectName = sharedPrefs.getString("selectedProjectName", "") ?: ""
-//            val selectedProjectId = sharedPrefs.getString("selectedProjectId", "") ?: ""
+            NetworkHelper(requireContext()).checkServerAvailability() { isServerAvailable, message ->
+                if (isServerAvailable) {
+                    val sharedPrefs =
+                        PreferenceManager.getDefaultSharedPreferences(requireActivity())
+                    val server_address_post = sharedPrefs.getString("server_address_post", "")
+                    val change_password = sharedPrefs.getString("change_password", "")
+
+                    val projectSpinner = view?.findViewById<Spinner>(R.id.projectSpinner)
+
+                    val gson = Gson()
+                    val jsonProjects = sharedPrefs.getString("projects", "")
+                    val projects: List<Project> = if (jsonProjects?.isNotEmpty() == true) {
+                        val listType = TypeToken.getParameterized(List::class.java, Project::class.java).type
+                        gson.fromJson(jsonProjects, listType)
+                    } else {
+                        emptyList()
+                    }
+
+                    val projectNames = projects.map { it.projectName }
+
+                    val selectedProjectName = projectSpinner?.selectedItem.toString()
+                    val selectedProject = projects.find { it.projectName == selectedProjectName }
+                    val selectedProjectId = selectedProject?.projectId.toString()
 
 
+                    val commentEditText = view?.findViewById<EditText>(R.id.commentEditText)
+                    val comment = commentEditText?.text.toString()
 
-                            val commentEditText = view?.findViewById<EditText>(R.id.commentEditText)
-                            val comment = commentEditText?.text.toString()
+                    if (!projectNames.isNullOrEmpty()) {
+                        if (!TextUtils.isEmpty(server_address_post)) {
+                            if (imageBase64.isNotEmpty()) {
+                                val client = OkHttpClient()
 
-                            if (!projectNames.isNullOrEmpty()) {
-                                if (!TextUtils.isEmpty(server_address_post)) {
-                                    if ("imageBase64".isNotEmpty()) {
-                                        val client = OkHttpClient()
+                                val requestBody: RequestBody = FormBody.Builder()
+                                    .add("request_command", "upload_image")
+                                    .add("password", change_password!!)
+                                    .add("imageBase64", imageBase64)
+                                    .add("project_id", selectedProjectId)
+                                    .add("project_name", selectedProjectName)
+                                    .add("comment", comment)
+                                    .build()
 
-                                        val requestBody: RequestBody = FormBody.Builder()
-                                            .add("request_command", "upload_image")
-                                            .add("password", change_password!!)
-                                            .add("imageBase64", imageBase64)
-                                            .add("project_name", selectedProjectName)
-//                                    .add("project_id", selectedProjectId)
-                                            .add("comment", comment)
-                                            .build()
+                                val request: Request = Request.Builder()
+                                    .url("$server_address_post")
+                                    .post(requestBody)
+                                    .build()
 
-                                        val request: Request = Request.Builder()
-                                            .url("$server_address_post")
-                                            .post(requestBody)
-                                            .build()
-
-                                        client.newCall(request).enqueue(object : Callback {
-                                            override fun onResponse(
-                                                call: Call,
-                                                response: Response
-                                            ) {
-                                                if (response.isSuccessful) {
-                                                    val logMessage =
-                                                        "Successfully sent to the server."
-                                                    requireActivity().runOnUiThread {
-                                                        view?.findViewById<Button>(R.id.sendToServerButton)?.isEnabled =
-                                                            true
-                                                        Toast.makeText(
-                                                            requireActivity(),
-                                                            logMessage,
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
-
-                                                    Log.e(TAG, logMessage)
-                                                } else {
-                                                    val logMessage = "Error sending request"
-                                                    requireActivity().runOnUiThread {
-                                                        view?.findViewById<Button>(R.id.sendToServerButton)?.isEnabled =
-                                                            true
-                                                        Toast.makeText(
-                                                            requireActivity(),
-                                                            "Error sending request",
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
-                                                    Log.e(TAG, "$logMessage: ${response.message}")
-                                                }
-                                            }
-
-                                            override fun onFailure(call: Call, e: IOException) {
-                                                requireActivity().runOnUiThread {
-                                                    view?.findViewById<Button>(R.id.sendToServerButton)?.isEnabled =
-                                                        true
-                                                    Toast.makeText(
-                                                        requireActivity(),
-                                                        "Failure sending request. Check url",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                }
-                                                Log.e(TAG, "Error sending request: ${e.message}")
-                                            }
-                                        })
-
+                                client.newCall(request).enqueue(object : Callback {
+                                    override fun onResponse(
+                                        call: Call,
+                                        response: Response
+                                    ) {
+                                        if (response.isSuccessful) {
+                                            toastAndLog("Successfully sent to the server: ${response.message}")
+                                            sharedViewModel.setButtonEnabled(true)
+                                        } else {
+                                            toastAndLog("Error sending request: ${response.message}")
+                                            sharedViewModel.setButtonEnabled(true)
+                                        }
                                     }
-                                }
+
+                                    override fun onFailure(call: Call, e: IOException) {
+                                        toastAndLog("Failure sending request: ${e.message}")
+                                        sharedViewModel.setButtonEnabled(true)
+                                    }
+                                })
                             }
-
-//
-
-        }
-        else {
-            requireActivity().runOnUiThread {
-                Toast.makeText(requireActivity(), "Check Wi-fi connection", Toast.LENGTH_SHORT).show()
-                view?.findViewById<Button>(R.id.sendToServerButton)?.isEnabled = true
+                        }
+                    }
+                }
+                else {
+                    toastAndLog(message)
+                    sharedViewModel.setButtonEnabled(true)
+                }
             }
         }
+        else {
+            toastAndLog("Check Wi-fi connection")
+            sharedViewModel.setButtonEnabled(true)
+        }
 
+    }
+
+    private fun toastAndLog(message: String) {
+        sharedViewModel.message.postValue(message)
+        sharedViewModel.setButtonEnabled(true)
+        Log.e(TAG, message)
     }
 
 }

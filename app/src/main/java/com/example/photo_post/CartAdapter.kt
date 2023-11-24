@@ -13,14 +13,10 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.photo_post.models.Cart
 import com.example.photo_post.server.NetworkHelper
-import java.util.Date
-import java.util.Locale
 
 class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<CartAdapter.CartAdapterViewHolder>() {
     class CartAdapterViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -28,6 +24,10 @@ class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<
         val editCartButton = itemView.findViewById<TextView>(R.id.editCartButton)
         val sendCartButton = itemView.findViewById<TextView>(R.id.sendCartButton)
         val childRecyclerView = itemView.findViewById<RecyclerView>(R.id.childRecyclerView)
+
+        val prevCartState = itemView.findViewById<TextView>(R.id.prevCartState)
+        val nextCartState = itemView.findViewById<TextView>(R.id.nextCartState)
+
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CartAdapterViewHolder {
@@ -46,6 +46,10 @@ class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<
         {
             holder.sendCartButton.visibility = View.VISIBLE
             holder.editCartButton.visibility = View.INVISIBLE
+            if (!viewModel.isCurrentCartIsTemplate) {
+                holder.prevCartState.visibility = View.VISIBLE
+                holder.nextCartState.visibility = View.VISIBLE
+            }
             cart = viewModel.currentCart
         }
         else cart = viewModel.cartListFromServer[position]
@@ -65,6 +69,8 @@ class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<
 
         if (viewModel.currentCart.cartItems.isEmpty())
         {
+            holder.prevCartState.visibility = View.INVISIBLE
+            holder.nextCartState.visibility = View.INVISIBLE
             holder.sendCartButton.visibility = View.INVISIBLE
         }
 
@@ -77,62 +83,96 @@ class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<
         }
 
         holder.cartNameTextView.setOnClickListener {
-            if (holder.editCartButton.visibility == View.INVISIBLE) {
-                val builder = AlertDialog.Builder(it.context)
-                builder.setTitle("Change cart name:")
+//            if (holder.editCartButton.visibility == View.INVISIBLE) {
+//                val builder = AlertDialog.Builder(it.context)
+//                builder.setTitle("Change cart name:")
+//
+//                val input = EditText(it.context)
+//                input.inputType = InputType.TYPE_CLASS_TEXT
+//                input.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(20))
+//
+//                input.setText(holder.cartNameTextView.text.toString())
+//                input.requestFocus()
+//
+//                builder.setView(input)
+//
+//                builder.setPositiveButton("OK") { dialog, _ ->
+//                    if (input.text.isNotEmpty()) {
+//                        viewModel.currentCart.cartName = input.text.toString()
+//                        val adapter = InstrInCartAdapter(viewModel.currentCart, viewModel, holder)
+//                        holder.childRecyclerView.adapter = adapter
+//                        notifyDataSetChanged()
+//                    }
+//                    dialog.dismiss()
+//                }
+//
+//                builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
+//
+//                val dialog = builder.create()
+//                dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+//                dialog.show()
+//
+//                input.postDelayed({
+//                    val imm =
+//                        it.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+//                    imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+//                }, 100)
+//            }
+        }
 
-                val input = EditText(it.context)
-                input.inputType = InputType.TYPE_CLASS_TEXT
-                input.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(20))
-
-                input.setText(holder.cartNameTextView.text.toString())
-                input.requestFocus()
-
-                builder.setView(input)
-
-                builder.setPositiveButton("OK") { dialog, _ ->
-                    if (input.text.isNotEmpty()) {
-                        viewModel.currentCart.cartName = input.text.toString()
-                        val adapter = InstrInCartAdapter(viewModel.currentCart, viewModel, holder)
+        holder.prevCartState.setOnClickListener {
+            NetworkHelper(it.context).getPrevNextCart("prev", cart.cartId) { carts, message ->
+                (it.context as Activity).runOnUiThread {
+                    if (carts.isNotEmpty()) {
+                        viewModel.currentCart = carts[0]
+                        viewModel.cartListFromServer.clear()
+                        val adapter = InstrInCartAdapter(cart, viewModel, holder)
                         holder.childRecyclerView.adapter = adapter
                         notifyDataSetChanged()
+                    } else {
+                        Toast.makeText(holder.itemView.context, message, Toast.LENGTH_SHORT).show()
                     }
-                    dialog.dismiss()
                 }
-
-                builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
-
-                val dialog = builder.create()
-                dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
-                dialog.show()
-
-                input.postDelayed({
-                    val imm =
-                        it.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                    imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
-                }, 100)
             }
         }
 
-        holder.sendCartButton.setOnClickListener {
-            NetworkHelper(it.context).uploadCart(viewModel) { isUploaded, message ->
+        holder.nextCartState.setOnClickListener {
+            NetworkHelper(it.context).getPrevNextCart("next", cart.cartId) { carts, message ->
                 (it.context as Activity).runOnUiThread {
-                    if (isUploaded) {
-                        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(it.context)
-                        val change_password = sharedPrefs.getString("change_password", "")
-
-                        val currentDateTime = android.icu.text.SimpleDateFormat(
-                            "yyyyMMddHHmmss",
-                            Locale.getDefault()
-                        ).format(Date())
-
-                        val cartName = "Cart ${currentDateTime.takeLast(6)}"
-                        viewModel.currentCart = Cart(currentDateTime.toLong(), change_password.toString(), cartName)
-                        val adapter = InstrInCartAdapter(viewModel.currentCart, viewModel, holder)
+                    if (carts.isNotEmpty()) {
+                        viewModel.currentCart = carts[0]
+                        viewModel.cartListFromServer.clear()
+                        val adapter = InstrInCartAdapter(cart, viewModel, holder)
                         holder.childRecyclerView.adapter = adapter
                         notifyDataSetChanged()
+                    } else {
+                        Toast.makeText(holder.itemView.context, message, Toast.LENGTH_SHORT).show()
                     }
-                    Toast.makeText(holder.itemView.context, message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        holder.sendCartButton.setOnClickListener {
+            val instrumentsNotCollected = viewModel.currentCart.cartItems.filter { it.amount_in_cart == 0.0 }.map { it.instrument.instrName }
+            if (instrumentsNotCollected.isNotEmpty()) {
+                val message = "This item(s) weren't collected:\n- ${instrumentsNotCollected.joinToString("\n- ")}"
+                AlertDialog.Builder(it.context)
+                    .setTitle("Warning")
+                    .setMessage(message)
+                    .setPositiveButton("OK") { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .show()
+            } else {
+                NetworkHelper(it.context).uploadCart(viewModel) { isUploaded, message ->
+                    (it.context as Activity).runOnUiThread {
+                        if (isUploaded) {
+                            viewModel.currentCart = Cart(0, "Get materials", 0, 0)
+                            val adapter = InstrInCartAdapter(viewModel.currentCart, viewModel, holder)
+                            holder.childRecyclerView.adapter = adapter
+                            notifyDataSetChanged()
+                        }
+                        Toast.makeText(holder.itemView.context, message, Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }

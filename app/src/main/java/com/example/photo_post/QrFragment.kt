@@ -5,16 +5,23 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.os.Bundle
+import android.text.InputFilter
+import android.text.InputType
 import android.text.TextUtils
 import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
@@ -37,16 +44,23 @@ import java.util.concurrent.TimeUnit
 
 private val REQUEST_CODE_SCANNER = 2001
 
-private val TAG = "QRFragment"
+private const val TAG = "QrFragment"
 
 class SharedViewModel : ViewModel() {
-    var currentCart: Cart = Cart(1,"password123","Current cart")
+    var currentCart: Cart = Cart(0,"Get materials", 0, 0)
     var cartListFromServer: ArrayList<Cart> = ArrayList()
+    var isCurrentCartIsTemplate: Boolean = false
     val instruments: MutableList<Instrument> = mutableListOf()
 
     val cartListFromServerLiveData = MutableLiveData<List<Cart>>()
 
+    var message = MutableLiveData<String>()
 
+    private val _isButtonEnabled = MutableLiveData<Boolean>()
+    val isButtonEnabled: LiveData<Boolean> get() = _isButtonEnabled
+    fun setButtonEnabled(isEnabled: Boolean) {
+        _isButtonEnabled.postValue(isEnabled)
+    }
     fun addToCart(instrument: Instrument, quantity: Double) {
         val cartItem = CartItem(instrument, quantity)
         currentCart.cartItems.add(cartItem)
@@ -58,6 +72,7 @@ class QrFragment : Fragment() {
     private lateinit var viewModel: SharedViewModel
     private lateinit var instrumentRecyclerView: RecyclerView
     private lateinit var adapter: InstrumentAdapter
+    
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,12 +95,130 @@ class QrFragment : Fragment() {
             val intent = Intent(requireContext(), ScannerActivity::class.java)
             startActivityForResult(intent, REQUEST_CODE_SCANNER)
         }
+        view.findViewById<ImageView>(R.id.inputQrButton).setOnClickListener {
+            val builder = AlertDialog.Builder(it.context)
+            builder.setTitle("Input QR:")
+
+            val input = EditText(it.context)
+            input.inputType = InputType.TYPE_CLASS_NUMBER
+            input.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(20))
+
+            input.setText("123")
+            input.requestFocus()
+
+            builder.setView(input)
+
+            builder.setPositiveButton("Get item") { dialog, _ ->
+                if (input.text.isNotEmpty()) {
+                    val qrCodeResult = input.text.toString()
+                    if (qrCodeResult != null) {
+                        getQrInfo(qrCodeResult) { qrInfoJson, message ->
+                            if (qrInfoJson != "") {
+                                if (qrInfoJson != null && isJSONValid(qrInfoJson)) {
+                                    if (!TextUtils.isEmpty(qrInfoJson)) {
+                                        val jsonObject = JSONObject(qrInfoJson)
+                                        val instrId: Long
+                                        val instrQr: String
+                                        val instrName: String
+                                        val instrAmount: Double
+                                        val instrProps: String
+                                        val instrUnits: String
+
+                                        if (jsonObject.has("instr_id") &&
+                                            jsonObject.has("instr_qr") &&
+                                            jsonObject.has("instr_name") &&
+                                            jsonObject.has("instr_props") &&
+                                            jsonObject.has("instr_amount") &&
+                                            jsonObject.has("instr_units")
+                                        ) {
+                                            instrId = jsonObject.getString("instr_id").toLong()
+                                            instrQr = jsonObject.getString("instr_qr")
+                                            instrName = jsonObject.getString("instr_name")
+                                            instrProps = jsonObject.getString("instr_props")
+                                            instrAmount = jsonObject.getString("instr_amount").toDouble()
+                                            instrUnits = jsonObject.getString("instr_units")
+                                        } else if (jsonObject.has("info")) {
+                                            instrId = 1
+                                            instrQr = qrCodeResult
+                                            instrName = qrCodeResult
+                                            instrProps = jsonObject.getString("info")
+                                            instrAmount = 1.0
+                                            instrUnits = "un"
+                                        }
+                                        else {
+                                            toastAndLog("Response (json) must contain:\n" +
+                                                    "instr_id, instr_qr, instr_name, instr_props, instr_amount, instr_units \n" +
+                                                    "or 'info'")
+                                            return@getQrInfo
+                                        }
+
+                                        val instrument = Instrument(instrId,instrName,instrQr,instrProps,instrAmount,instrUnits,
+                                            isAddToCartEnabled = !jsonObject.has("info")
+                                        )
+                                        val existingInstrument = viewModel.instruments.find { it.instrQr == instrQr }
+
+                                        if (existingInstrument != null) {
+                                            val builder = AlertDialog.Builder(requireContext())
+                                            builder.setTitle("A tool with such a QR code already exists")
+                                            builder.setMessage("Do you want to replace it??")
+
+                                            builder.setPositiveButton("Yes") { dialog, _ ->
+                                                val index = viewModel.instruments.indexOf(existingInstrument)
+                                                viewModel.instruments[index] = instrument
+                                                adapter.notifyItemChanged(index)
+                                                dialog.dismiss()
+                                            }
+                                            builder.setNegativeButton("No") { dialog, _ -> dialog.cancel() }
+
+                                            builder.show()
+                                        } else {
+                                            adapter.addInstrument(instrument)
+                                        }
+                                    } else {
+                                        toastAndLog("Get empty response body from server")
+                                    }
+                                } else {
+                                    toastAndLog("Response from server not json serializable")
+                                }
+                            } else {
+                                toastAndLog(message)
+                            }
+                        }
+                    } else {
+                        toastAndLog("Cannot get info for $qrCodeResult\"")
+                    }
+                }
+            }
+            builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
+
+            val dialog = builder.create()
+            dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+            dialog.show()
+
+            input.postDelayed({
+                val imm = it.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+            }, 100)
+        }
         return view
     }
 
 
     override fun onPause() {
         super.onPause()
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        viewModel = ViewModelProvider(requireActivity()).get(SharedViewModel::class.java)
+
+        viewModel.message.observe(viewLifecycleOwner, Observer { message ->
+            if (message.isNotEmpty()) {
+                Toast.makeText(activity, message, Toast.LENGTH_SHORT).show()
+                viewModel.message.postValue("")
+            }
+        })
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -98,98 +231,80 @@ class QrFragment : Fragment() {
                         if (qrInfoJson != null && isJSONValid(qrInfoJson)) {
                             if (!TextUtils.isEmpty(qrInfoJson)) {
                                 val jsonObject = JSONObject(qrInfoJson)
+                                val instrId: Long
+                                val instrQr: String
+                                val instrName: String
+                                val instrProps: String
+                                val instrAmount: Double
+                                val instrUnits: String
+
                                 if (jsonObject.has("instr_id") &&
                                     jsonObject.has("instr_qr") &&
                                     jsonObject.has("instr_name") &&
-                                    jsonObject.has("instr_props")
+                                    jsonObject.has("instr_props") &&
+                                    jsonObject.has("instr_amount") &&
+                                    jsonObject.has("instr_units")
                                 ) {
-                                    val jsonObject = JSONObject(qrInfoJson)
-                                    val instrId = jsonObject.getString("instr_id").toLong()
-                                    val instrQr = jsonObject.getString("instr_qr")
-                                    val instrName = jsonObject.getString("instr_name")
-                                    val instrProps =
-                                        jsonObject.getString("instr_props")
-                                    val instrument =
-                                        Instrument(
-                                            instrId,
-                                            instrName,
-                                            instrQr,
-                                            instrProps
-                                        )
-                                    val existingInstrument =
-                                        viewModel.instruments.find { it.instrQr == instrQr }
+                                    instrId = jsonObject.getString("instr_id").toLong()
+                                    instrQr = jsonObject.getString("instr_qr")
+                                    instrName = jsonObject.getString("instr_name")
+                                    instrProps = jsonObject.getString("instr_props")
+                                    instrAmount = jsonObject.getString("instr_amount").toDouble()
+                                    instrUnits = jsonObject.getString("instr_units")
 
-                                    if (existingInstrument != null) {
-                                        val builder = AlertDialog.Builder(requireContext())
-                                        builder.setTitle("A tool with such a QR code already exists")
-                                        builder.setMessage("Do you want to replace it??")
-
-                                        builder.setPositiveButton("Yes") { dialog, _ ->
-                                            val index =
-                                                viewModel.instruments.indexOf(existingInstrument)
-                                            viewModel.instruments[index] = instrument
-                                            adapter.notifyItemChanged(index)
-                                            dialog.dismiss()
-                                        }
-                                        builder.setNegativeButton("No") { dialog, _ -> dialog.cancel() }
-
-                                        builder.show()
-                                    } else {
-                                        adapter.addInstrument(instrument)
-                                    }
+                                } else if (jsonObject.has("info")) {
+                                    instrId = 1
+                                    instrQr = qrCodeResult
+                                    instrName = qrCodeResult
+                                    instrProps = jsonObject.getString("info")
+                                    instrAmount = 1.0
+                                    instrUnits = "un"
                                 }
                                 else {
-                                    requireActivity().runOnUiThread {
-                                        Toast.makeText(
-                                            requireActivity(),
-                                            "Response (json) must contain:\ninstr_id, instr_qr, instr_name, instr_props",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                    toastAndLog("Response (json) must contain:\n" +
+                                            "instr_id, instr_qr, instr_name, instr_props, instr_amount, instr_units \n" +
+                                            "or 'info'")
+                                    return@getQrInfo
+                                }
+
+                                val instrument = Instrument(instrId,instrName,instrQr,instrProps,instrAmount,instrUnits,
+                                                            isAddToCartEnabled = !jsonObject.has("info")
+                                )
+                                val existingInstrument = viewModel.instruments.find { it.instrQr == instrQr }
+
+                                if (existingInstrument != null) {
+                                    val builder = AlertDialog.Builder(requireContext())
+                                    builder.setTitle("A tool with such a QR code already exists")
+                                    builder.setMessage("Do you want to replace it??")
+
+                                    builder.setPositiveButton("Yes") { dialog, _ ->
+                                        val index = viewModel.instruments.indexOf(existingInstrument)
+                                        viewModel.instruments[index] = instrument
+                                        adapter.notifyItemChanged(index)
+                                        dialog.dismiss()
                                     }
+                                    builder.setNegativeButton("No") { dialog, _ -> dialog.cancel() }
+
+                                    builder.show()
+                                } else {
+                                    adapter.addInstrument(instrument)
                                 }
+                            } else {
+                                toastAndLog("Get empty response body from server")
                             }
-                            else {
-                                requireActivity().runOnUiThread {
-                                    Toast.makeText(
-                                        requireActivity(),
-                                        "Get empty response body from server",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
+                        } else {
+                            toastAndLog("Response from server not json serializable")
                         }
-                        else {
-                            requireActivity().runOnUiThread {
-                                Toast.makeText(
-                                    requireActivity(),
-                                    "Response from server not json serializable",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    }
-                    else {
-                        requireActivity().runOnUiThread {
-                            Toast.makeText(
-                                requireActivity(),
-                                message,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                    } else {
+                        toastAndLog(message)
                     }
                 }
-            }
-            else {
-                requireActivity().runOnUiThread {
-                    Toast.makeText(
-                        requireActivity(),
-                        "Cannot get info for $qrCodeResult",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+            } else {
+                toastAndLog("Cannot get info for $qrCodeResult\"")
             }
         }
     }
+
 
 
     private fun getQrInfo(instr_qr: String?, callback: (String?, String) -> Unit) {
@@ -205,9 +320,9 @@ class QrFragment : Fragment() {
             if (!TextUtils.isEmpty(server_address_post)) {
                 val change_password = sharedPrefs.getString("change_password", "")
                 val client = OkHttpClient.Builder()
-                    .connectTimeout(5, TimeUnit.SECONDS) // Устанавливаем таймаут подключения
-                    .writeTimeout(5, TimeUnit.SECONDS) // Устанавливаем таймаут записи
-                    .readTimeout(5, TimeUnit.SECONDS) // Устанавливаем таймаут чтения
+                    .connectTimeout(5, TimeUnit.SECONDS)
+                    .writeTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
                     .build()
 
                 val requestBody: RequestBody = FormBody.Builder()
@@ -217,7 +332,7 @@ class QrFragment : Fragment() {
                     .build()
 
                 val request: Request = Request.Builder()
-                    .url("$server_address_post") // http://192.168.100.5/myproject/api.php
+                    .url("$server_address_post")
                     .post(requestBody)
                     .build()
 
@@ -256,12 +371,18 @@ class QrFragment : Fragment() {
         }
     }
 
-    fun isJSONValid(json: String): Boolean {
-        try {
+    private fun isJSONValid(json: String): Boolean {
+        return try {
             JSONObject(json)
-            return true
+            true
         } catch (e: JSONException) {
-            return false
+            false
         }
+    }
+
+    private fun toastAndLog(message: String) {
+        viewModel.message.postValue(message)
+        viewModel.setButtonEnabled(true)
+        Log.e(TAG, message)
     }
 }

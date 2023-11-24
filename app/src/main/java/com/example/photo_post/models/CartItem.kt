@@ -2,7 +2,7 @@ package com.example.photo_post.models
 
 data class CartItem(
     val instrument: Instrument,
-    var quantity: Double
+    var amount_in_cart: Double
 )
 
 

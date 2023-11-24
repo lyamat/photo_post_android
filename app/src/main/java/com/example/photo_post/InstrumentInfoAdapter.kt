@@ -27,7 +27,7 @@ class InstrumentInfoAdapter(private val cartItems: List<CartItem>) :
         val instrument = cartItems[position].instrument
         holder.instrumentNameTextView.text = instrument.instrName
         holder.instrumentDescriptionTextView.text = instrument.instrProps
-        holder.instrumentQuantityTextView.text = cartItems[position].quantity.toString()
+        holder.instrumentQuantityTextView.text = cartItems[position].amount_in_cart.toString()
     }
 
     override fun getItemCount(): Int {

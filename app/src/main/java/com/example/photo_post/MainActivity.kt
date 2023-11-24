@@ -8,13 +8,8 @@ import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.preference.PreferenceManager
 import com.example.photo_post.databinding.ActivityMainBinding
-import java.util.Date
-import androidx.lifecycle.ViewModelProvider
-import com.example.photo_post.models.Cart
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import java.util.Locale
 
 
 class MainActivity : AppCompatActivity() {
@@ -74,19 +69,6 @@ class MainActivity : AppCompatActivity() {
         supportFragmentManager.beginTransaction()
             .replace(R.id.frameLayout, PhotoFragment())
             .commit()
-
-        viewModel = ViewModelProvider(this).get(SharedViewModel::class.java)
-
-        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this)
-        val change_password = sharedPrefs.getString("change_password", "")
-
-        val currentDateTime = android.icu.text.SimpleDateFormat(
-            "yyyyMMddHHmmss",
-            Locale.getDefault()
-        ).format(Date())
-
-        val cartName = "Cart ${currentDateTime.takeLast(6)}"
-        viewModel.currentCart = Cart(currentDateTime.toLong(), change_password.toString(), cartName)
 
     }
 
