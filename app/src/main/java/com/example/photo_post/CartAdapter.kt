@@ -73,6 +73,10 @@ class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<
             holder.nextCartState.visibility = View.INVISIBLE
             holder.sendCartButton.visibility = View.INVISIBLE
         }
+        if (viewModel.currentCart.cartId.toInt() == 0) {
+            holder.prevCartState.visibility = View.INVISIBLE
+            holder.nextCartState.visibility = View.INVISIBLE
+        }
 
         holder.editCartButton.setOnClickListener {
             viewModel.currentCart = viewModel.cartListFromServer[position]
@@ -166,7 +170,7 @@ class CartAdapter(private val viewModel: SharedViewModel): RecyclerView.Adapter<
                 NetworkHelper(it.context).uploadCart(viewModel) { isUploaded, message ->
                     (it.context as Activity).runOnUiThread {
                         if (isUploaded) {
-                            viewModel.currentCart = Cart(0, "Get materials", 0, 0)
+                            viewModel.currentCart = Cart(0, "Get materials", "0", 0)
                             val adapter = InstrInCartAdapter(viewModel.currentCart, viewModel, holder)
                             holder.childRecyclerView.adapter = adapter
                             notifyDataSetChanged()

@@ -64,7 +64,11 @@
 -keep class com.example.photo_post.server.NetworkHelper { *; }
 
 -keep class com.example.photo_post.models.JsonModel { *; }
+-keep class com.example.photo_post.models.JsonModelGetCartByProcess { *; }
 -keepclassmembers class com.example.photo_post.models.JsonModel {
+    public <init>();
+}
+-keepclassmembers class com.example.photo_post.models.JsonModelGetCartByProcess {
     public <init>();
 }
 

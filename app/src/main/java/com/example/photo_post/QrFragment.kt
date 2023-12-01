@@ -47,7 +47,7 @@ private val REQUEST_CODE_SCANNER = 2001
 private const val TAG = "QrFragment"
 
 class SharedViewModel : ViewModel() {
-    var currentCart: Cart = Cart(0,"Get materials", 0, 0)
+    var currentCart: Cart = Cart(0,"Get materials", "0", 0)
     var cartListFromServer: ArrayList<Cart> = ArrayList()
     var isCurrentCartIsTemplate: Boolean = false
     val instruments: MutableList<Instrument> = mutableListOf()

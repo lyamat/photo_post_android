@@ -1,13 +1,13 @@
 package com.example.photo_post.models
 
 data class JsonModel(
-    val cart_id: Long,
+    val cart_id: String,
     val cart_name: String,
-    val cart_type: Long,
-    val process_id: Long,
+    val cart_type: String,
+    val process_id: String,
 
-    val instr_id: Long,
-    val amount_in_cart: Double,
+    val instr_id: String,
+    val amount_in_cart: String,
     val instr_name: String,
     val instr_props: String,
     val instr_amount: Double,

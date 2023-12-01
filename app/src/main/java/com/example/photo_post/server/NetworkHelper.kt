@@ -26,6 +26,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import java.io.IOException
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import java.util.concurrent.TimeUnit
 
@@ -96,7 +97,7 @@ class NetworkHelper(private val context: Context) {
                 val jsonArray = JSONArray(it)
                 for (i in 0 until jsonArray.length()) {
                     val jsonObject = jsonArray.getJSONObject(i)
-                    val projectId = jsonObject.getLong("id")
+                    val projectId = jsonObject.getString("id").toLong()
                     val projectName = jsonObject.getString("name")
                     projectList.add(Project(projectId, projectName))
                 }
@@ -161,7 +162,7 @@ class NetworkHelper(private val context: Context) {
                 val jsonArray = JSONArray(it)
                 for (i in 0 until jsonArray.length()) {
                     val jsonObject = jsonArray.getJSONObject(i)
-                    val processId = jsonObject.getLong("process_id")
+                    val processId = jsonObject.getString("process_id").toLong()
                     val processName = jsonObject.getString("process_name")
                     processList.add(Process(processId, processName))
                 }
@@ -315,39 +316,39 @@ class NetworkHelper(private val context: Context) {
 
                                         val carts: ArrayList<Cart> = arrayListOf()
                                         jsonModels.forEach { jsonModel ->
-                                            var cart = carts.find { it.cartId == jsonModel.cart_id }
+                                            var cart = carts.find { it.cartId == jsonModel.cart_id.toLong() }
 
                                             if (cart == null) {
                                                 cart = Cart(
-                                                    jsonModel.cart_id,
+                                                    jsonModel.cart_id.toLong(),
                                                     jsonModel.cart_name,
                                                     jsonModel.cart_type,
-                                                    0)
+                                                    jsonModel.process_id.toLong())
                                            carts.add(cart)
                                             }
 
                                             val instrument = Instrument(
-                                                jsonModel.instr_id,
+                                                jsonModel.instr_id.toLong(),
                                                 jsonModel.instr_name,
                                                 jsonModel.instr_qr,
                                                 jsonModel.instr_props,
                                                 jsonModel.instr_amount,
                                                 jsonModel.instr_units
                                             )
-                                            val cartItem = CartItem(instrument, jsonModel.amount_in_cart)
+                                            val cartItem = CartItem(instrument, jsonModel.amount_in_cart.toDouble())
 
                                             cart.cartItems.add(cartItem)
                                         }
-                                        callback(carts, "Success. Received ${carts.size} carts.")
+                                        callback(carts, "Success. Received ${carts.size} boxes.")
                                     } else {
-                                        val logMsg = "Response unsuccessful, getting carts"
+                                        val logMsg = "Response unsuccessful, getting boxes"
                                         Log.e("onResponse", "$logMsg: ${response.message}")
                                         callback(ArrayList(), "$logMsg: ${response.message}")
                                     }
                                 }
 
                                 override fun onFailure(call: Call, e: IOException) {
-                                    Log.e("onFailure", "Failure, carts: ${e.message}")
+                                    Log.e("onFailure", "Failure, boxes: ${e.message}")
                                     callback(ArrayList(), e.message ?: "")
                                 }
                             })
@@ -404,55 +405,67 @@ class NetworkHelper(private val context: Context) {
                                 override fun onResponse(call: Call, response: Response) {
                                     if (response.isSuccessful) {
                                         val gson = Gson()
-                                        val listType = TypeToken.getParameterized(
-                                            List::class.java,
-                                            JsonModelGetCartByProcess::class.java
-                                        ).type
-                                        val jsonModels: List<JsonModelGetCartByProcess> =
-                                            gson.fromJson(response.body?.string(), listType)
+                                        val jsonElement = JsonParser().parse(response.body?.string())
+                                        if (jsonElement.isJsonObject) {
+                                            val jsonObject = jsonElement.asJsonObject
+                                            if (jsonObject.has("message")) {
+                                                val logMsg = jsonObject.get("message").asString
+                                                Log.e("onResponse", "$logMsg: ${response.message}")
+                                                callback(ArrayList(), "$logMsg: ${response.message}")
+                                            }
+                                        } else if (jsonElement.isJsonArray) {
+                                            val listType = TypeToken.getParameterized(
+                                                List::class.java,
+                                                JsonModelGetCartByProcess::class.java
+                                            ).type
+                                            val jsonModels: List<JsonModelGetCartByProcess> =
+                                                gson.fromJson(jsonElement, listType)
 
-                                        val carts: ArrayList<Cart> = arrayListOf()
-                                        jsonModels.forEach { jsonModelGetCartByProcess ->
-                                            var cart = carts.find { it.cartId == jsonModelGetCartByProcess.cart_id }
+                                            val carts: ArrayList<Cart> = arrayListOf()
+                                            jsonModels.forEach { jsonModelGetCartByProcess ->
+                                                var cart = carts.find { it.cartId == jsonModelGetCartByProcess.cart_id.toLong() }
 
-                                            if (cart == null) {
-                                                cart = Cart(
-                                                    jsonModelGetCartByProcess.cart_id,
-                                                    jsonModelGetCartByProcess.cart_name,
-                                                    jsonModelGetCartByProcess.cart_type,
-                                                    jsonModelGetCartByProcess.process_id)
-                                                carts.add(cart)
+                                                if (cart == null) {
+                                                    cart = Cart(
+                                                        jsonModelGetCartByProcess.cart_id.toLong(),
+                                                        jsonModelGetCartByProcess.cart_name,
+                                                        jsonModelGetCartByProcess.cart_type,
+                                                        jsonModelGetCartByProcess.process_id.toLong())
+                                                    carts.add(cart)
+                                                }
+
+                                                val instrument = Instrument(
+                                                    jsonModelGetCartByProcess.instr_id.toLong(),
+                                                    jsonModelGetCartByProcess.instr_name,
+                                                    jsonModelGetCartByProcess.instr_qr,
+                                                    jsonModelGetCartByProcess.instr_props,
+                                                    jsonModelGetCartByProcess.instr_amount.toDouble(),
+                                                    jsonModelGetCartByProcess.instr_units
+                                                )
+                                                val cartItem = CartItem(instrument, 0.0)
+
+                                                cart.cartItems.add(cartItem)
+                                            }
+                                            if (carts.size > 0) {
+                                                carts.subList(1, carts.size).clear()
+                                                carts[0].cartId = 0
                                             }
 
-                                            val instrument = Instrument(
-                                                jsonModelGetCartByProcess.instr_id,
-                                                jsonModelGetCartByProcess.instr_name,
-                                                jsonModelGetCartByProcess.instr_qr,
-                                                jsonModelGetCartByProcess.instr_props,
-                                                jsonModelGetCartByProcess.instr_amount,
-                                                jsonModelGetCartByProcess.instr_units
-                                            )
-                                            val cartItem = CartItem(instrument, 0.0)
-
-                                            cart.cartItems.add(cartItem)
+                                            callback(carts, "Success. Received ${carts.size} boxes.")
                                         }
-                                        if (carts.size > 0) {
-                                            carts.subList(1, carts.size).clear()
-                                            carts[0].cartId = 0
-                                        }
-
-                                        callback(carts, "Success. Received ${carts.size} carts.")
                                     } else {
-                                        val logMsg = "Response unsuccessful, getting carts"
+                                        val logMsg = "Response unsuccessful, getting boxes"
                                         Log.e("onResponse", "$logMsg: ${response.message}")
                                         callback(ArrayList(), "$logMsg: ${response.message}")
                                     }
                                 }
 
                                 override fun onFailure(call: Call, e: IOException) {
-                                    Log.e("onFailure", "Failure, carts: ${e.message}")
+                                    Log.e("onFailure", "Failure, boxes: ${e.message}")
                                     callback(ArrayList(), e.message ?: "")
                                 }
+
+
                             })
                         }
                         else {
@@ -518,22 +531,22 @@ class NetworkHelper(private val context: Context) {
                                         if (jsonModels.isNotEmpty()) {
                                             val carts: ArrayList<Cart> = arrayListOf()
                                             var cart = Cart(
-                                                jsonModels[0].cart_id,
+                                                jsonModels[0].cart_id.toLong(),
                                                 jsonModels[0].cart_name,
                                                 jsonModels[0].cart_type,
-                                                jsonModels[0].process_id
+                                                jsonModels[0].process_id.toLong()
                                             )
 
                                             jsonModels.forEach { jsonModel ->
                                                 val instrument = Instrument(
-                                                    jsonModel.instr_id,
+                                                    jsonModel.instr_id.toLong(),
                                                     jsonModel.instr_name,
                                                     jsonModel.instr_qr,
                                                     jsonModel.instr_props,
                                                     jsonModel.instr_amount,
                                                     jsonModel.instr_units
                                                 )
-                                                val cartItem = CartItem(instrument, jsonModel.amount_in_cart)
+                                                val cartItem = CartItem(instrument, jsonModel.amount_in_cart.toDouble())
 
                                                 cart.cartItems.add(cartItem)
                                             }
@@ -550,7 +563,7 @@ class NetworkHelper(private val context: Context) {
                                 }
 
                                 override fun onFailure(call: Call, e: IOException) {
-                                    Log.e("onFailure", "Failure, carts: ${e.message}")
+                                    Log.e("onFailure", "Failure, boxes: ${e.message}")
                                     callback(ArrayList(), e.message ?: "")
                                 }
                             })
@@ -574,4 +587,3 @@ class NetworkHelper(private val context: Context) {
         }
     }
 }
-

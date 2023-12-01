@@ -116,12 +116,16 @@ class CartFragment : Fragment() {
                                 NetworkHelper(it.context).getCartByProcess(selectedProcess) { carts, message ->
                                     activity?.runOnUiThread {
                                         if (carts.isNotEmpty()) {
+                                            viewModel.currentCart = carts[0]
+                                            viewModel.cartListFromServer.clear()
+//                                            val adapter = InstrInCartAdapter(cart, viewModel, holder)
+
                                             viewModel.isCurrentCartIsTemplate = true
-                                            viewModel.cartListFromServer = carts
+//                                            viewModel.cartListFromServer = carts
                                             val adapter = CartAdapter(viewModel)
                                             instrInCartRecyclerView.adapter = adapter
 
-                                            viewModel.cartListFromServerLiveData.value = viewModel.cartListFromServer
+//                                            viewModel.cartListFromServerLiveData.value = viewModel.cartListFromServer
                                         } else {
                                             toastAndLog(message)
                                         }
